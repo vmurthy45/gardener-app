@@ -47,6 +47,15 @@ const money = c => (c < 0 ? '-' : '') + '$' + (Math.abs(c) / 100).toFixed(2).rep
 const parseMoney = s => { const n = parseFloat(String(s).replace(/[^0-9.\-]/g, '')); return isNaN(n) ? 0 : Math.round(n * 100); };
 const centsInput = c => (c ? (c / 100).toFixed(2).replace(/\.00$/, '') : '');
 
+// NZ bank account: bank (2) - branch (4) - account (7) - suffix (2 or 3), e.g. 12-3456-0123456-00
+function fmtBankNo(raw) {
+  const d = String(raw || '').replace(/\D/g, '');
+  if (d.length === 15 || d.length === 16) return `${d.slice(0, 2)}-${d.slice(2, 6)}-${d.slice(6, 13)}-${d.slice(13)}`;
+  return String(raw || '').trim();
+}
+const bankOk = raw => /^\d{2}-\d{4}-\d{7}-\d{2,3}$/.test(fmtBankNo(raw));
+// Account name in capitals on the first line, number on the second
+const bankLines = s => [String(s.bankName || '').trim().toUpperCase(), fmtBankNo(s.bank)].filter(Boolean);
 const telHref = p => 'tel:' + String(p).replace(/[^\d+]/g, '');
 const smsHref = (p, body) => `sms:${String(p).replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(body)}`;
 const mailHref = (to, subject, body) => `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -55,16 +64,18 @@ const mailHref = (to, subject, body) => `mailto:${to}?subject=${encodeURICompone
 const FREQS = [['w1', 'Weekly'], ['w2', 'Fortnightly'], ['w3', 'Every 3 weeks'], ['w4', 'Every 4 weeks'], ['m1', 'Monthly'], ['m2', 'Every 2 months'], ['m3', 'Every 3 months'], ['once', 'One-off']];
 const WINTER = [['', 'Same all year'], ['w2', 'Fortnightly'], ['w3', 'Every 3 weeks'], ['w4', 'Every 4 weeks'], ['w6', 'Every 6 weeks'], ['w8', 'Every 8 weeks'], ['off', 'No visits in winter']];
 const TERMS = [['receipt', 'Due on receipt'], ['d7', '7 days'], ['d14', '14 days'], ['d20', '20 days'], ['20th', '20th of the next month']];
-const SERVICES = {
-  'Lawn mow': 'Mow lawns\nEdge paths and gardens\nBlow paths and driveway',
-  'Lawns & gardens': 'Mow lawns\nEdges\nWeed garden beds\nBlow paths',
-  'Hedge trim': 'Trim hedges\nClear and remove clippings',
-  'Garden tidy': 'Weed garden beds\nDeadhead and tidy\nRemove green waste',
-  'Weeding': 'Weed garden beds\nSpray paths',
-  'Pruning': 'Prune shrubs and trees\nRemove cuttings',
-  'Mulching': 'Spread mulch on beds',
-  'Green waste removal': 'Load and dump green waste',
-};
+const SERVICES = ['Lawn mow', 'Lawns & gardens', 'Hedge trim', 'Garden tidy', 'Weeding', 'Pruning', 'Mulching', 'Green waste removal'];
+// Task lists the app used to fill in automatically (removed 09/11/2026). Used only to tell them apart from tasks a user typed.
+const OLD_TASK_PRESETS = [
+  'Mow lawns\nEdge paths and gardens\nBlow paths and driveway',
+  'Mow lawns\nEdges\nWeed garden beds\nBlow paths',
+  'Trim hedges\nClear and remove clippings',
+  'Weed garden beds\nDeadhead and tidy\nRemove green waste',
+  'Weed garden beds\nSpray paths',
+  'Prune shrubs and trees\nRemove cuttings',
+  'Spread mulch on beds',
+  'Load and dump green waste',
+];
 const NOTE_CHIPS = ['Gate code: ', 'Dog on site, shut the gate', 'Side gate access', 'Park on the street', 'Take green waste away', 'Clippings in client bin', 'Do not touch: '];
 const EXTRAS = ['Green waste dump fee', 'Mulch', 'Plants', 'Fertiliser', 'Travel'];
 
@@ -75,14 +86,14 @@ function defaults() {
     settings: {
       business: '', owner: '', phone: '', email: '', address: '',
       gstRegistered: true, gstNumber: '', pricesInclGst: false,
-      bank: '', terms: '20th', invPrefix: 'INV-', nextInv: 1, quotePrefix: 'Q-', nextQuote: 1,
+      bankName: '', bank: '', terms: '20th', invPrefix: 'INV-', nextInv: 1, quotePrefix: 'Q-', nextQuote: 1,
       workDays: [1, 2, 3, 4, 5], winterMonths: [5, 6, 7, 8], lastBackup: null,
       templates: {
         visit: "Hi {first}, just a heads-up that I'll be round on {day} for your {service}. Cheers, {owner}",
         rain: "Hi {first}, rain's stopped play today, so I'll be round on {day} instead. Sorry for the change. Cheers, {owner}",
-        invoice: "Hi {first},\n\nHere's invoice {number} for {amount}, due {due}.\n\n{lines}\n\nPlease pay by bank transfer to {bank} with reference {number}.\n\nThanks,\n{owner}\n{business}",
+        invoice: "Hi {first},\n\nHere's invoice {number} for {amount}, due {due}.\n\n{lines}\n\nPlease pay by bank transfer to:\n{bank}\nReference: {number}\n\nThanks,\n{owner}\n{business}",
         quote: "Hi {first},\n\nHere's quote {number} for {amount}.\n\n{lines}\n\nValid until {due}. Just reply to go ahead.\n\nThanks,\n{owner}\n{business}",
-        overdue: 'Hi {first}, a friendly reminder that invoice {number} for {amount} was due on {due}. Bank account {bank}, reference {number}. Thanks, {owner}',
+        overdue: 'Hi {first}, a friendly reminder that invoice {number} for {amount} was due on {due}. Please pay to:\n{bank}\nReference: {number}\nThanks, {owner}',
       },
     },
     clients: [], properties: [], jobs: [], visits: [], docs: [],
@@ -92,6 +103,18 @@ function migrate(s) {
   const b = defaults();
   s.settings = { ...b.settings, ...s.settings, templates: { ...b.settings.templates, ...(s.settings || {}).templates } };
   for (const k of ['clients', 'properties', 'jobs', 'visits', 'docs']) s[k] = s[k] || [];
+  const OLD = {
+    invoice: "Hi {first},\n\nHere's invoice {number} for {amount}, due {due}.\n\n{lines}\n\nPlease pay by bank transfer to {bank} with reference {number}.\n\nThanks,\n{owner}\n{business}",
+    overdue: 'Hi {first}, a friendly reminder that invoice {number} for {amount} was due on {due}. Bank account {bank}, reference {number}. Thanks, {owner}',
+  };
+  for (const k in OLD) if (s.settings.templates[k] === OLD[k]) s.settings.templates[k] = b.settings.templates[k];
+  for (const j of s.jobs) {
+    if (j.tasks === undefined) continue;
+    const t = String(j.tasks).trim();
+    if (t && !OLD_TASK_PRESETS.includes(t)) j.notes = [j.notes, t].filter(Boolean).join('\n');
+    delete j.tasks;
+  }
+  for (const v of s.visits) delete v.checks;
   return s;
 }
 function load() {
@@ -170,7 +193,7 @@ function ensureVisits(to) {
     if (j.freq === 'once') from = j.startDate;
     const existing = new Set(S.visits.filter(v => v.jobId === j.id).map(v => v.origDate));
     for (const d of occurrences(j, from, to)) {
-      if (!existing.has(d)) S.visits.push({ id: uid(), jobId: j.id, date: d, origDate: d, status: 'scheduled', order: null, note: '', checks: [] });
+      if (!existing.has(d)) S.visits.push({ id: uid(), jobId: j.id, date: d, origDate: d, status: 'scheduled', order: null, note: '' });
     }
     j.generatedUntil = to;
     changed = true;
@@ -265,7 +288,7 @@ function msg(key, { client, job, date, doc } = {}) {
   const vars = {
     first: greet(client), name: client?.name || '', day: date ? fmtLong(date) : '',
     service: (job?.title || 'visit').toLowerCase(), owner: s.owner || s.business || '', business: s.business || '',
-    bank: s.bank || '(bank account)', number: doc?.number || '', amount: t ? money(t.total) : '',
+    bank: bankLines(s).join('\n') || '(bank account)', number: doc?.number || '', amount: t ? money(t.total) : '',
     due: doc ? fmtDate(doc.due) : '', lines: doc ? docText(doc) : '',
   };
   return s.templates[key].replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
@@ -385,7 +408,7 @@ function runItem(x, i) {
   return `<li class="visit ${v.status}" onclick="go('visit/${v.id}')"><div class="num">${num}</div>
     <div class="grow"><div class="name">${esc(x.client.name)}</div><div class="sub">${esc(propShort(x.prop))}</div>
     <div class="sub">${x.job.time ? esc(x.job.time) + ' · ' : ''}${esc(x.job.title)}${v.status === 'skipped' ? ' · skipped' : ''}</div>
-    ${hasNotes && v.status === 'scheduled' ? '<span class="flag">⚠ Site notes</span>' : ''}</div>${side}</li>`;
+    ${hasNotes && v.status === 'scheduled' ? '<span class="flag">⚠ Notes</span>' : ''}</div>${side}</li>`;
 }
 function welcomeCard() {
   return `<div class="card welcome"><h3>Kia ora 👋</h3><p>Three steps to get set up:</p>
@@ -441,8 +464,6 @@ function vVisit(id) {
   if (!v) return notFound('today');
   const { job, prop, client } = ctx(v);
   if (!client) return notFound('today');
-  const tasks = (job.tasks || '').split('\n').map(s => s.trim()).filter(Boolean);
-  const notes = [prop.notes, job.notes].filter(Boolean).join('\n');
   const price = v.price ?? job.price;
   const status = { scheduled: 'Booked', done: 'Done' + (v.doneTime ? ' ' + v.doneTime : ''), skipped: 'Skipped' }[v.status];
   let h = `<div class="hero"><span class="badge ${v.status}">${status}</span>
@@ -450,10 +471,8 @@ function vVisit(id) {
     <div class="sub">${relDay(v.date)}${job.time ? ' · ' + esc(job.time) : ''} · ${esc(job.title)} · ${freqLabel(job)} · ${priceLabel(price)}</div></div>
     <div class="grid3"><a class="btn" href="${esc(mapsHref(prop))}" target="_blank" rel="noopener">Maps</a>
     ${client.phone ? `<a class="btn" href="${esc(telHref(client.phone))}">Call</a><a class="btn" href="${esc(smsHref(client.phone, ''))}">Text</a>` : ''}</div>`;
-  if (notes) h += `<div class="notes"><div class="label">Site notes</div>${nl2br(notes)}</div>`;
-  if (tasks.length) {
-    h += `<div class="label">Tasks</div>${tasks.map((t, i) => `<label class="check"><input type="checkbox" ${v.checks?.includes(i) ? 'checked' : ''} onchange="toggleCheck('${id}',${i},this.checked)"> ${esc(t)}</label>`).join('')}`;
-  }
+  if (prop.notes) h += `<div class="notes"><div class="label">Site notes</div>${nl2br(prop.notes)}</div>`;
+  if (job.notes) h += `<div class="card"><div class="label" style="margin-top:0">Job notes</div>${nl2br(job.notes)}</div>`;
   h += `<label class="label" for="vnote">Note for this visit</label>
     <textarea id="vnote" rows="2" placeholder="e.g. Back lawn too wet, skipped the edges" oninput="setVisitNote('${id}',this.value)">${esc(v.note)}</textarea>`;
   if (v.status === 'scheduled') {
@@ -473,7 +492,6 @@ function vVisit(id) {
     <button class="link" onclick="go('job/${job.id}/edit')">Edit this job ›</button></div>`;
   return { title: relDay(v.date), html: h, back: 'today' };
 }
-function toggleCheck(id, i, on) { const v = V(id); v.checks = (v.checks || []).filter(x => x !== i); if (on) v.checks.push(i); save(); }
 function setVisitNote(id, val) { V(id).note = val; save(); }
 function markDone(id) {
   const v = V(id), x = ctx(v);
@@ -707,19 +725,17 @@ function vJobForm(jid, pid, q = {}) {
   const p = P(j ? j.propertyId : pid);
   if (!p) return notFound('clients');
   const c = C(p.clientId);
-  const d = j ? { ...j } : { title: '', tasks: '', price: 0, freq: 'w2', winterFreq: '', startDate: nextWorkDay(addDays(todayISO(), -1)), time: '', endDate: '', notes: '' };
+  const d = j ? { ...j } : { title: '', price: 0, freq: 'w2', winterFreq: '', startDate: nextWorkDay(addDays(todayISO(), -1)), time: '', endDate: '', notes: '' };
   const quote = q.quote && D(q.quote);
   if (!j && quote) {
-    Object.assign(d, { title: quote.lines[0]?.desc || 'Quoted job', tasks: quote.lines.map(l => l.desc).join('\n'), price: quote.lines.reduce((a, l) => a + lineAmt(l), 0), freq: 'once', notes: `From quote ${quote.number}` });
+    Object.assign(d, { title: quote.lines[0]?.desc || 'Quoted job', price: quote.lines.reduce((a, l) => a + lineAmt(l), 0), freq: 'once', notes: [`From quote ${quote.number}:`, ...quote.lines.map(l => '- ' + l.desc)].join('\n') });
   }
   const wm = S.settings.winterMonths.slice().sort((a, b) => a - b).map(m => MONTHS[m - 1]).join(', ');
   let h = `<div class="card"><b>${esc(c.name)}</b><div class="sub">${esc(propFull(p))}</div></div>
     <form id="jobform" onsubmit="saveJob(event,'${jid || ''}','${p.id}')">
     <label for="f_title">What's the job? *</label>
-    <div class="chips">${Object.keys(SERVICES).map(s => `<button type="button" class="chip" onclick="pickService('${s}')">${s}</button>`).join('')}</div>
+    <div class="chips">${SERVICES.map(s => `<button type="button" class="chip" onclick="pickService('${s}')">${s}</button>`).join('')}</div>
     <input id="f_title" name="title" required value="${esc(d.title)}" placeholder="e.g. Lawn mow">
-    <label for="f_tasks">Tasks <span class="sub sm">(one per line, becomes your on-site checklist)</span></label>
-    <textarea id="f_tasks" name="tasks" rows="4">${esc(d.tasks)}</textarea>
     <label for="f_price">Price per visit (${gstWord()})</label>
     <input id="f_price" name="price" inputmode="decimal" value="${centsInput(d.price)}" placeholder="0.00">
     <label>How often?</label>
@@ -728,7 +744,7 @@ function vJobForm(jid, pid, q = {}) {
       <select id="f_wf" name="winterFreq">${WINTER.map(([v, l]) => `<option value="${v}" ${d.winterFreq === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
     <div class="two">${field(j ? 'Start date' : 'First visit', 'start', d.startDate, 'date', 'required')}${field('Time (optional)', 'time', d.time, 'time')}</div>
     ${field('Last visit (optional)', 'end', d.endDate, 'date')}
-    <label for="f_jnotes">Notes for this job</label><textarea id="f_jnotes" name="notes" rows="2" placeholder="e.g. Mow on the high setting">${esc(d.notes)}</textarea>
+    <label for="f_jnotes">Notes for this job <span class="sub sm">(only if it's more than the standard service)</span></label><textarea id="f_jnotes" name="notes" rows="3" placeholder="e.g. Also weed the front bed. Mow on the high setting.">${esc(d.notes)}</textarea>
     <button class="btn primary big">${j ? 'Save changes' : 'Save job'}</button></form>`;
   if (j) {
     h += `<p class="sub sm">Changing how often, the start date or the last visit rebuilds the upcoming visits. Done visits aren't touched.</p>
@@ -737,16 +753,12 @@ function vJobForm(jid, pid, q = {}) {
   }
   return { title: j ? 'Edit job' : 'New job', html: h, back: 'client/' + c.id };
 }
-function pickService(s) {
-  const f = $('#jobform').elements;
-  f.title.value = s;
-  if (!f.tasks.value.trim() || Object.values(SERVICES).includes(f.tasks.value)) f.tasks.value = SERVICES[s];
-}
+function pickService(s) { $('#jobform').elements.title.value = s; }
 function saveJob(e, jid, pid) {
   e.preventDefault();
   const f = Object.fromEntries(new FormData(e.target));
   const freq = f.freq || 'w2';
-  const data = { propertyId: pid, title: f.title.trim(), tasks: f.tasks.trim(), price: parseMoney(f.price), freq, winterFreq: freq.startsWith('w') ? f.winterFreq : '', startDate: f.start, time: f.time || '', endDate: f.end || '', notes: f.notes.trim() };
+  const data = { propertyId: pid, title: f.title.trim(), price: parseMoney(f.price), freq, winterFreq: freq.startsWith('w') ? f.winterFreq : '', startDate: f.start, time: f.time || '', endDate: f.end || '', notes: f.notes.trim() };
   if (!data.title) return toast("Add what the job is");
   if (!data.startDate) return toast('Pick a start date');
   if (data.endDate && data.endDate < data.startDate) return toast('The last visit is before the first');
@@ -850,8 +862,8 @@ function vDoc(id) {
   const inv = d.kind === 'invoice', c = C(d.clientId), s = S.settings;
   const statuses = inv ? [['draft', 'Draft'], ['sent', 'Sent'], ['paid', 'Paid']] : [['draft', 'Draft'], ['sent', 'Sent'], ['accepted', 'Accepted'], ['declined', 'Declined']];
   let h = '';
-  if (!s.business || (d.gstMode !== 'none' && !s.gstNumber) || (inv && !s.bank)) {
-    h += `<button class="card warn tap" onclick="go('settings')"><b>Finish your business details</b><div class="sub">Business name${d.gstMode !== 'none' ? ', GST number' : ''}${inv ? ' and bank account' : ''} appear on ${inv ? 'invoices' : 'quotes'}. Open Settings ›</div></button>`;
+  if (!s.business || (d.gstMode !== 'none' && !s.gstNumber) || (inv && (!s.bank || !s.bankName))) {
+    h += `<button class="card warn tap" onclick="go('settings')"><b>Finish your business details</b><div class="sub">Business name${d.gstMode !== 'none' ? ', GST number' : ''}${inv ? ' and bank account name and number' : ''} appear on ${inv ? 'invoices' : 'quotes'}. Open Settings ›</div></button>`;
   }
   h += `<div class="seg">${statuses.map(([k, l]) => `<button class="${d.status === k ? 'on' : ''}" onclick="setDocStatus('${id}','${k}')">${l}</button>`).join('')}</div>
     ${d.status === 'paid' ? `<p class="ok">Paid ${fmtDate(d.paidDate)}</p>` : isOverdue(d) ? `<p class="bad">${docStatusLine(d)}</p>` : ''}
@@ -968,7 +980,8 @@ function printHtml(d) {
     <tbody>${d.lines.map(l => `<tr><td>${esc(l.desc)}</td><td class="r">${esc(l.qty)}</td><td class="r">${money(l.unit)}</td><td class="r">${money(lineAmt(l))}</td></tr>`).join('')}</tbody></table>
     <table class="inv-totals">${tot}</table>
     ${d.notes ? `<p>${nl2br(d.notes)}</p>` : ''}
-    ${inv ? `<div class="pay">Please pay by bank transfer to <b>${esc(s.bank || '—')}</b> using reference <b>${esc(d.number)}</b> by ${fmtDate(d.due)}.</div>` : ''}</div>`;
+    ${inv ? `<div class="pay"><div class="lbl">Please pay by bank transfer to</div><b>${bankLines(s).map(esc).join('<br>') || '—'}</b>
+      <div class="pay-ref">Reference: <b>${esc(d.number)}</b> · Due: <b>${fmtDate(d.due)}</b></div></div>` : ''}</div>`;
 }
 
 // ---------------------------------------------------------------- SETTINGS
@@ -1003,7 +1016,10 @@ function vSettings() {
   }
   h += `<p class="sub sm">GST changes apply to new quotes and invoices. Existing ones keep their numbers.</p>
     <h2>Invoices</h2>
-    ${sfield('Bank account (for payment)', 'bank', 'text', 'placeholder="12-3456-0123456-00"')}
+    ${sfield('Bank account name', 'bankName', 'text', 'placeholder="e.g. GREEN THUMB GARDENING LIMITED" autocapitalize="characters"')}
+    ${sfield('Bank account number', 'bank', 'text', 'inputmode="numeric" placeholder="12-3456-0123456-00" onblur="this.value=fmtBankNo(this.value);setSetting(this);$(\'#bankwarn\').hidden=!this.value||bankOk(this.value)"')}
+    <p id="bankwarn" class="bad sm" ${!s.bank || bankOk(s.bank) ? 'hidden' : ''}>That doesn't look like an NZ account number (2-4-7-2 or 2-4-7-3 digits, e.g. 12-3456-0123456-00).</p>
+    <p class="sub sm">Shown on invoices and in payment messages as the account name in capitals, with the number on the line below.</p>
     <label for="s_terms">Payment terms</label><select id="s_terms" data-set="terms" onchange="setSetting(this)">${TERMS.map(([v, l]) => `<option value="${v}" ${s.terms === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
     <div class="two">${sfield('Invoice prefix', 'invPrefix')}${sfield('Next invoice no.', 'nextInv', 'number', 'min="1"')}</div>
     <div class="two">${sfield('Quote prefix', 'quotePrefix')}${sfield('Next quote no.', 'nextQuote', 'number', 'min="1"')}</div>
@@ -1065,7 +1081,7 @@ function loadSample() {
   if (S.clients.length && !confirm('Replace everything on this device with sample data?')) return;
   const t = todayISO();
   S = defaults();
-  Object.assign(S.settings, { business: 'Green Thumb Gardening', owner: 'Sam', phone: '021 555 0100', email: 'sam@example.co.nz', address: 'PO Box 123, Titirangi\nAuckland 0642', gstNumber: '123-456-789', bank: '12-3456-0123456-00', terms: 'd14' });
+  Object.assign(S.settings, { business: 'Green Thumb Gardening', owner: 'Sam', phone: '021 555 0100', email: 'sam@example.co.nz', address: 'PO Box 123, Titirangi\nAuckland 0642', gstNumber: '123-456-789', bankName: 'Green Thumb Gardening Limited', bank: '12-3456-0123456-00', terms: 'd14' });
   // [name, phone, email, billing, greet, [[street, suburb, city, postcode, notes, [[title, freq, winter, price, time, startOffset]]]]]
   const rows = [
     ['Aroha Ngata', '021 555 0142', 'aroha@example.co.nz', 'visit', '', [['14 Rata Street', 'Titirangi', 'Auckland', '0604', 'Gate code 4471\nFriendly dog (Bella), keep the gate shut', [['Lawn mow', 'w2', 'w4', 6000, '08:00', -42]]]]],
@@ -1085,11 +1101,11 @@ function loadSample() {
       const p = { id: uid(), clientId: c.id, street, suburb, city, postcode, notes };
       S.properties.push(p);
       for (const [title, freq, winterFreq, price, time, off] of jobs) {
-        const j = { id: uid(), propertyId: p.id, title, tasks: SERVICES[title] || '', price, freq, winterFreq, startDate: addDays(t, off), time, endDate: '', notes: '', active: true, generatedUntil: null, created: t };
+        const j = { id: uid(), propertyId: p.id, title, price, freq, winterFreq, startDate: addDays(t, off), time, endDate: '', notes: '', active: true, generatedUntil: null, created: t };
         S.jobs.push(j);
         const from = addDays(t, billing === 'monthly' ? -27 : -45);
         for (const d of occurrences(j, from, addDays(t, -1))) {
-          const v = { id: uid(), jobId: j.id, date: d, origDate: d, status: 'done', order: null, note: '', checks: [], doneTime: '', price };
+          const v = { id: uid(), jobId: j.id, date: d, origDate: d, status: 'done', order: null, note: '', doneTime: '', price };
           S.visits.push(v);
           if (billing === 'visit') past.push([c.id, v]);
         }

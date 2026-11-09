@@ -1,5 +1,7 @@
 # Rounds: v1 job app for NZ gardeners
 
+How to use it: see the [user guide](USER_GUIDE.md).
+
 A barebones, local-only web app. Install it on the Home Screen from the browser. All data stays on the device (localStorage).
 
 ## Run locally

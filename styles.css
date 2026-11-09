@@ -193,3 +193,5 @@ legend { font-weight: 800; padding: 0 6px; }
   body { background: #fff; }
   @page { margin: 16mm; }
 }
+.inv .pay b { font-size: 12pt; line-height: 1.5; }
+.inv .pay-ref { margin-top: 8px; }
