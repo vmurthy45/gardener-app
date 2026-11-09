@@ -378,10 +378,11 @@ function vToday() {
   const tomN = S.visits.filter(v => v.date === tomorrow && v.status === 'scheduled').length;
   let h = '';
   if (!S.clients.length) h += welcomeCard();
-  h += `<div class="hero"><div class="sub">${fmtLong(t)}</div>
+  h += `<div class="hero today-head"><div class="grow"><div class="sub">${fmtLong(t)}</div>
     <div class="big">${list.length ? `${done.length} of ${list.filter(x => x.v.status !== 'skipped').length} done` : 'No visits today'}</div>
-    ${done.length ? `<div class="sub">${money(done.reduce((a, x) => a + visitPrice(x), 0))} of work done today</div>` : ''}</div>`;
-  if (sched.length) h += `<button class="btn big rain" onclick="rainSheet()">🌧 Rain day: push ${sched.length} to ${fmtDay(nextWorkDay(t))}</button>`;
+    ${done.length ? `<div class="sub">${money(done.reduce((a, x) => a + visitPrice(x), 0))} of work done today</div>` : ''}</div>
+    ${sched.length ? `<button class="btn rain-sm" onclick="rainSheet()" aria-label="Rain day: push ${sched.length} visits to ${fmtDay(nextWorkDay(t))}"><span class="rain-ico">🌧</span><span><b>Rain day</b><small>Push ${sched.length} to ${DAYS[dow(nextWorkDay(t))]}</small></span></button>` : ''}</div>`;
+  if (S.clients.length) h += `<button class="btn primary big add-job" onclick="go('job/new')">+ Add a job</button>`;
   if (missed.length) {
     h += `<div class="card warn"><b>${missed.length} visit${pl(missed.length)} from earlier days not done</b>
       ${missed.slice(0, 6).map(x => `<div class="row mini"><div class="grow" onclick="go('visit/${x.v.id}')">${esc(x.client.name)} <span class="sub">· ${fmtDay(x.v.date)} · ${esc(x.job.title)}</span></div>
@@ -393,13 +394,12 @@ function vToday() {
     h += `<div class="section-head"><h2>Today's run</h2>${sched.length > 1 ? `<button class="link" onclick="reorder=!reorder;render()">${reorder ? 'Done' : 'Change order'}</button>` : ''}</div>
       <ol class="run">${list.map((x, i) => runItem(x, i)).join('')}</ol>`;
   }
-  if (S.clients.length || list.length) h += `<button class="btn add-job" onclick="go('job/new')">+ Add a job</button>`;
   if (tomN) h += `<button class="card tap" onclick="go('reminders')"><b>Tomorrow: ${tomN} visit${pl(tomN)}</b><div class="sub">Send "coming tomorrow" messages ›</div></button>`;
   const lb = S.settings.lastBackup;
   if (S.clients.length && (!lb || daysBetween(lb, t) > 14)) {
     h += `<button class="card tap" onclick="go('settings')"><b>Back up your data</b><div class="sub">${lb ? 'Last backup ' + fmtDate(lb) : 'No backup yet'}. Your data is only on this device. ›</div></button>`;
   }
-  return { title: 'Today', html: h, action: ['+ Job', 'job/new'] };
+  return { title: 'Today', html: h };
 }
 function runItem(x, i) {
   const v = x.v, hasNotes = x.prop.notes || x.job.notes;

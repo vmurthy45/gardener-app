@@ -65,7 +65,7 @@ Changes save automatically. There's no Save button.
 
 A job is the work you do at an address, such as a fortnightly mow or a monthly hedge trim. Once it's set up, its visits appear on your schedule automatically. You don't need to add the client first.
 
-1. On **Today**, tap **+ Add a job** (under today's run), or **+ Job** at the top right. **+ Job** is also on the **Schedule** tab.
+1. On **Today**, tap the big green **+ Add a job** button near the top. On the **Schedule** tab, tap **+ Job** at the top right.
 2. Under **Who is it for?**:
    - pick an existing client and address from the list, **or**
    - choose **+ New client or address**, then enter the **street address** (required) and any of: **Client name**, **Mobile**, **Email**, suburb, postcode and **Site notes**.
@@ -198,7 +198,7 @@ Skipping one visit doesn't affect the rest of the regular job.
 
 ## Push today's jobs to another day (rain day)
 
-1. On **Today**, tap **🌧 Rain day: push … to …**.
+1. On **Today**, tap **🌧 Rain day**, the dark button beside the day's summary ("0 of 4 done"). It shows how many visits it will push, and to which day.
 2. The next working day is chosen for you. Change the date if you need to.
 3. Tap **Push … visits**. Every visit not yet done today moves to that day, after the visits already booked there.
 4. A list of the affected clients appears. Tap **Text** or **Email** next to each one to open a ready-written message ("rain's stopped play today, so I'll be round on…"), then send it from your phone's Messages or Mail app.

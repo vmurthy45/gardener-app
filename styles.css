@@ -195,4 +195,9 @@ legend { font-weight: 800; padding: 0 6px; }
 }
 .inv .pay b { font-size: 12pt; line-height: 1.5; }
 .inv .pay-ref { margin-top: 8px; }
-.btn.add-job { border-style: dashed; font-size: 18px; min-height: 60px; }
+.btn.add-job { font-size: 20px; min-height: 64px; }
+.today-head { display: flex; align-items: center; gap: 12px; }
+.btn.rain-sm { width: auto; flex: none; margin: 0; min-height: 60px; padding: 6px 14px; gap: 8px; background: #263238; border-color: #263238; color: #fff; text-align: left; }
+.rain-sm .rain-ico { font-size: 24px; }
+.rain-sm b { display: block; font-size: 16px; }
+.rain-sm small { display: block; font-size: 13px; font-weight: 600; opacity: .9; }
