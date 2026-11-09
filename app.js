@@ -91,9 +91,9 @@ function defaults() {
       templates: {
         visit: "Hi {first}, just a heads-up that I'll be round on {day} for your {service}. Cheers, {owner}",
         rain: "Hi {first}, rain's stopped play today, so I'll be round on {day} instead. Sorry for the change. Cheers, {owner}",
-        invoice: "Hi {first},\n\nHere's invoice {number} for {amount}, due {due}.\n\n{lines}\n\nPlease pay by bank transfer to:\n{bank}\nReference: {number}\n\nThanks,\n{owner}\n{business}",
+        invoice: "Hi {first},\n\nHere's the bill for the work on {jobdate}: {amount}, due {due}.\n\n{lines}\n\nPlease pay by bank transfer to:\n{bank}\n\nThanks,\n{owner}\n{business}",
         quote: "Hi {first},\n\nHere's quote {number} for {amount}.\n\n{lines}\n\nValid until {due}. Just reply to go ahead.\n\nThanks,\n{owner}\n{business}",
-        overdue: 'Hi {first}, a friendly reminder that invoice {number} for {amount} was due on {due}. Please pay to:\n{bank}\nReference: {number}\nThanks, {owner}',
+        overdue: 'Hi {first}, a friendly reminder that {amount} for the work on {jobdate} was due on {due}. Please pay to:\n{bank}\nThanks, {owner}',
       },
     },
     clients: [], properties: [], jobs: [], visits: [], docs: [],
@@ -104,10 +104,12 @@ function migrate(s) {
   s.settings = { ...b.settings, ...s.settings, templates: { ...b.settings.templates, ...(s.settings || {}).templates } };
   for (const k of ['clients', 'properties', 'jobs', 'visits', 'docs']) s[k] = s[k] || [];
   const OLD = {
-    invoice: "Hi {first},\n\nHere's invoice {number} for {amount}, due {due}.\n\n{lines}\n\nPlease pay by bank transfer to {bank} with reference {number}.\n\nThanks,\n{owner}\n{business}",
-    overdue: 'Hi {first}, a friendly reminder that invoice {number} for {amount} was due on {due}. Bank account {bank}, reference {number}. Thanks, {owner}',
+    invoice: ["Hi {first},\n\nHere's invoice {number} for {amount}, due {due}.\n\n{lines}\n\nPlease pay by bank transfer to {bank} with reference {number}.\n\nThanks,\n{owner}\n{business}",
+      "Hi {first},\n\nHere's invoice {number} for {amount}, due {due}.\n\n{lines}\n\nPlease pay by bank transfer to:\n{bank}\nReference: {number}\n\nThanks,\n{owner}\n{business}"],
+    overdue: ['Hi {first}, a friendly reminder that invoice {number} for {amount} was due on {due}. Bank account {bank}, reference {number}. Thanks, {owner}',
+      'Hi {first}, a friendly reminder that invoice {number} for {amount} was due on {due}. Please pay to:\n{bank}\nReference: {number}\nThanks, {owner}'],
   };
-  for (const k in OLD) if (s.settings.templates[k] === OLD[k]) s.settings.templates[k] = b.settings.templates[k];
+  for (const k in OLD) if (OLD[k].includes(s.settings.templates[k])) s.settings.templates[k] = b.settings.templates[k];
   for (const j of s.jobs) {
     if (j.tasks === undefined) continue;
     const t = String(j.tasks).trim();
@@ -148,7 +150,10 @@ const freqLabel = j => {
 };
 
 // ---------------------------------------------------------------- GST
-function gstMode() { const s = S.settings; return !s.gstRegistered ? 'none' : s.pricesInclGst ? 'incl' : 'excl'; }
+// GST tax invoices are switched off for now (decided 10/11/2026): plain invoices, no GST maths.
+// Set GST_ON = true to bring back the Settings section and GST on new quotes and invoices.
+const GST_ON = false;
+function gstMode() { const s = S.settings; return !GST_ON || !s.gstRegistered ? 'none' : s.pricesInclGst ? 'incl' : 'excl'; }
 const gstWord = (m = gstMode()) => (m === 'excl' ? 'excl. GST' : m === 'incl' ? 'incl. GST' : 'no GST');
 function priceLabel(c) { const m = gstMode(); return money(c) + (m === 'excl' ? ' + GST' : m === 'incl' ? ' incl GST' : ''); }
 const lineAmt = l => Math.round((+l.qty || 0) * (l.unit || 0));
@@ -270,18 +275,27 @@ function docStatusLine(d) {
   if (d.lastReminder) s += ` · reminded ${fmtDate(d.lastReminder)}`;
   return s;
 }
-function docText(d) {
+function docText(d, itemsOnly) {
   const s = S.settings, c = C(d.clientId), t = totals(d);
-  const out = [`${docTitle(d).toUpperCase()} ${d.number} · ${fmtDate(d.date)}`];
-  out.push(s.business + (d.gstMode !== 'none' && s.gstNumber ? ` · GST no. ${s.gstNumber}` : ''));
-  if (c) out.push(`To: ${c.name}`);
-  out.push('');
+  const out = [];
+  if (!itemsOnly || d.gstMode !== 'none') {
+    out.push(`${docTitle(d).toUpperCase()} ${d.number} · ${fmtDate(d.date)}`);
+    out.push(s.business + (d.gstMode !== 'none' && s.gstNumber ? ` · GST no. ${s.gstNumber}` : ''));
+    if (c) out.push(`To: ${c.name}`);
+    out.push('');
+  }
   for (const l of d.lines) out.push(`- ${l.desc}${+l.qty !== 1 ? ` (${l.qty} × ${money(l.unit)})` : ''}: ${money(lineAmt(l))}`);
-  out.push('');
+  if (!itemsOnly) out.push('');
   if (d.gstMode === 'excl') out.push(`Subtotal: ${money(t.sub)}`, `GST 15%: ${money(t.gst)}`, `Total: ${money(t.total)}`);
   else if (d.gstMode === 'incl') out.push(`Total incl. GST: ${money(t.total)}`, `(includes GST of ${money(t.gst)})`);
   else out.push(`Total: ${money(t.total)}`);
   return out.join('\n');
+}
+// Dates of the visits an invoice covers, e.g. "03/11/2026 and 17/11/2026". Falls back to the invoice date.
+function jobDates(doc) {
+  const ds = [...new Set(S.visits.filter(v => v.docId === doc.id).map(v => v.date))].sort().map(fmtDate);
+  if (!ds.length) return fmtDate(doc.date);
+  return ds.length === 1 ? ds[0] : ds.slice(0, -1).join(', ') + ' and ' + ds[ds.length - 1];
 }
 function msg(key, { client, job, date, doc } = {}) {
   const s = S.settings, t = doc ? totals(doc) : null;
@@ -289,7 +303,7 @@ function msg(key, { client, job, date, doc } = {}) {
     first: greet(client), name: client?.name || '', day: date ? fmtLong(date) : '',
     service: (job?.title || 'visit').toLowerCase(), owner: s.owner || s.business || '', business: s.business || '',
     bank: bankLines(s).join('\n') || '(bank account)', number: doc?.number || '', amount: t ? money(t.total) : '',
-    due: doc ? fmtDate(doc.due) : '', lines: doc ? docText(doc) : '',
+    due: doc ? fmtDate(doc.due) : '', lines: doc ? docText(doc, true) : '', jobdate: doc ? jobDates(doc) : '',
   };
   return s.templates[key].replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
 }
@@ -755,7 +769,7 @@ function vJobForm(jid, pid, q = {}) {
 <label for="f_title">What's the job? *</label>
     <div class="chips">${SERVICES.map(s => `<button type="button" class="chip" onclick="pickService('${s}')">${s}</button>`).join('')}</div>
     <input id="f_title" name="title" required value="${esc(d.title)}" placeholder="e.g. Lawn mow">
-    <label for="f_price">Price per visit (${gstWord()})</label>
+    <label for="f_price">Price per visit${GST_ON ? ` (${gstWord()})` : ''}</label>
     <input id="f_price" name="price" inputmode="decimal" value="${centsInput(d.price)}" placeholder="0.00">
     <label>How often?</label>
     <div class="chips">${FREQS.map(([v, l]) => `<label class="chip"><input type="radio" name="freq" value="${v}" ${d.freq === v ? 'checked' : ''} onchange="$('#winter').hidden=!this.value.startsWith('w')">${l}</label>`).join('')}</div>
@@ -908,7 +922,7 @@ function vDoc(id) {
   }
   h += `<div class="two"><div><label for="ddate">Date</label><input type="date" id="ddate" value="${d.date}" onchange="docDate('${id}',this.value)"></div>
     <div><label for="ddue">${inv ? 'Due' : 'Valid until'}</label><input type="date" id="ddue" value="${d.due}" onchange="docSet('${id}','due',this.value)"></div></div>
-    <div class="label">Items <span class="sm">· prices ${gstWord(d.gstMode)}</span></div>
+    <div class="label">Items${d.gstMode !== 'none' ? ` <span class="sm">· prices ${gstWord(d.gstMode)}</span>` : ''}</div>
     <div id="lines">${d.lines.map((l, i) => lineRow(id, l, i)).join('')}</div>
     <div class="chips"><button class="chip" onclick="addLine('${id}','')">+ Add item</button>${EXTRAS.map(x => `<button class="chip" onclick="addLine('${id}','${x}')">+ ${x}</button>`).join('')}</div>
     <label for="dnotes">Notes</label><textarea id="dnotes" rows="2" oninput="docSet('${id}','notes',this.value,true)" placeholder="Shown on the ${d.kind}">${esc(d.notes)}</textarea>
@@ -1038,7 +1052,9 @@ function vSettings() {
     ${sfield('Your name (signs your messages)', 'owner', 'text', 'placeholder="e.g. Sam"')}
     <div class="two">${sfield('Phone', 'phone', 'tel')}${sfield('Email', 'email', 'email')}</div>
     <label for="s_address">Postal address</label><textarea id="s_address" rows="2" data-set="address" oninput="setSetting(this)">${esc(s.address)}</textarea>
-    <h2>GST</h2>
+`;
+  if (GST_ON) {
+    h += `<h2>GST</h2>
     <label class="check"><input type="checkbox" data-set="gstRegistered" ${s.gstRegistered ? 'checked' : ''} onchange="setSetting(this);render()"> I'm registered for GST</label>`;
   if (s.gstRegistered) {
     h += `${sfield('GST number', 'gstNumber', 'text', 'placeholder="123-456-789"')}
@@ -1046,8 +1062,9 @@ function vSettings() {
       <div class="seg"><label><input type="radio" name="incl" ${!s.pricesInclGst ? 'checked' : ''} onchange="S.settings.pricesInclGst=false;save()">Excl. GST (+15%)</label>
         <label><input type="radio" name="incl" ${s.pricesInclGst ? 'checked' : ''} onchange="S.settings.pricesInclGst=true;save()">Incl. GST</label></div>`;
   }
-  h += `<p class="sub sm">GST changes apply to new quotes and invoices. Existing ones keep their numbers.</p>
-    <h2>Invoices</h2>
+  h += `<p class="sub sm">GST changes apply to new quotes and invoices. Existing ones keep their numbers.</p>`;
+  }
+  h += `<h2>Invoices</h2>
     ${sfield('Bank account name', 'bankName', 'text', 'placeholder="e.g. GREEN THUMB GARDENING LIMITED" autocapitalize="characters"')}
     ${sfield('Bank account number', 'bank', 'text', 'inputmode="numeric" placeholder="12-3456-0123456-00" onblur="this.value=fmtBankNo(this.value);setSetting(this);$(\'#bankwarn\').hidden=!this.value||bankOk(this.value)"')}
     <p id="bankwarn" class="bad sm" ${!s.bank || bankOk(s.bank) ? 'hidden' : ''}>That doesn't look like an NZ account number (2-4-7-2 or 2-4-7-3 digits, e.g. 12-3456-0123456-00).</p>
@@ -1062,9 +1079,9 @@ function vSettings() {
     <h2>Message wording</h2><p class="sub sm">Words in {curly brackets} are filled in for you.</p>
     ${tpl('visit', '"Coming tomorrow" reminder', '{first} {day} {service} {owner}')}
     ${tpl('rain', 'Rain-day message', '{first} {day} {service} {owner}')}
-    ${tpl('invoice', 'Invoice email / text', '{first} {number} {amount} {due} {lines} {bank} {owner} {business}')}
+    ${tpl('invoice', 'Invoice email / text', '{first} {jobdate} {amount} {due} {lines} {bank} {owner} {business} {number}')}
     ${tpl('quote', 'Quote email / text', '{first} {number} {amount} {due} {lines} {owner} {business}')}
-    ${tpl('overdue', 'Overdue reminder', '{first} {number} {amount} {due} {bank} {owner}')}
+    ${tpl('overdue', 'Overdue reminder', '{first} {jobdate} {amount} {due} {bank} {owner} {number}')}
     <h2>Your data</h2>
     <div class="card"><p>Everything is stored <b>on this device only</b>: ${S.clients.length} client${pl(S.clients.length)}, ${S.docs.length} quote${pl(S.docs.length)}/invoice${pl(S.docs.length)}.
       Last backup: <b>${s.lastBackup ? fmtDate(s.lastBackup) : 'never'}</b>.</p>
@@ -1113,7 +1130,7 @@ function loadSample() {
   if (S.clients.length && !confirm('Replace everything on this device with sample data?')) return;
   const t = todayISO();
   S = defaults();
-  Object.assign(S.settings, { business: 'Green Thumb Gardening', owner: 'Sam', phone: '021 555 0100', email: 'sam@example.co.nz', address: 'PO Box 123, Titirangi\nAuckland 0642', gstNumber: '123-456-789', bankName: 'Green Thumb Gardening Limited', bank: '12-3456-0123456-00', terms: 'd14' });
+  Object.assign(S.settings, { business: 'Green Thumb Gardening', owner: 'Sam', phone: '021 555 0100', email: 'sam@example.co.nz', address: 'PO Box 123, Titirangi\nAuckland 0642', bankName: 'Green Thumb Gardening Limited', bank: '12-3456-0123456-00', terms: 'd14' });
   // [name, phone, email, billing, greet, [[street, suburb, city, postcode, notes, [[title, freq, winter, price, time, startOffset]]]]]
   const rows = [
     ['Aroha Ngata', '021 555 0142', 'aroha@example.co.nz', 'visit', '', [['14 Rata Street', 'Titirangi', 'Auckland', '0604', 'Gate code 4471\nFriendly dog (Bella), keep the gate shut', [['Lawn mow', 'w2', 'w4', 6000, '08:00', -42]]]]],

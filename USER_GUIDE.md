@@ -39,13 +39,11 @@ You can explore with made-up clients before entering your own.
 
 Your business details appear on every quote and invoice, so do this first.
 
+> The app makes plain invoices with no GST. GST tax invoices aren't in this version.
+
 1. Go to **Settings**.
 2. Under **Business**, fill in your business name, your name (used to sign your messages), phone, email and postal address.
-3. Under **GST**:
-   - Tick **I'm registered for GST** if you are, and enter your **GST number**.
-   - Choose whether the prices you enter are **Excl. GST** (the app adds 15%) or **Incl. GST**.
-   - If you're not GST registered, untick the box. Your invoices will then say "Invoice" instead of "Tax invoice" and show no GST.
-4. Under **Invoices**:
+3. Under **Invoices**:
    - Enter your **Bank account name** exactly as your bank has it (e.g. *GREEN THUMB GARDENING LIMITED*). NZ banks check that the name matches the account, so a mismatch can make clients' payments get flagged.
    - Enter your **Bank account number**. You can type just the digits and the app adds the dashes, e.g. *12-3456-0123456-00*.
    - Choose your **payment terms** (e.g. 14 days, or the 20th of the next month).
@@ -268,7 +266,7 @@ On the invoice screen you can:
 - tap **✕** to remove a line
 - add **Notes** to show on the invoice
 
-GST and the total update as you type. Invoice numbers are filled in automatically.
+The total updates as you type. Invoice numbers are filled in automatically.
 
 ---
 
@@ -298,7 +296,7 @@ Paid invoices move to the **Paid** tab, which also shows what you've been paid t
 
 1. Go to **Invoices**. The top box shows how much you're owed and how many invoices are overdue.
 2. Under **Unpaid**, overdue invoices are listed first, in red.
-3. Tap **Remind** next to the invoice, then **Text** or **Email** to open a polite, ready-written reminder that includes your bank details.
+3. Tap **Remind** next to the invoice, then **Text** or **Email** to open a polite, ready-written reminder with the date of the work, the amount, the due date and your bank details.
 4. The invoice then shows when you last sent a reminder.
 
 ---
@@ -336,7 +334,7 @@ To find a client quickly, use the search box at the top of **Clients**. It searc
 
 1. Go to **Settings** → **Message wording**.
 2. Edit any of the messages: **"Coming tomorrow" reminder**, **Rain-day message**, **Invoice email / text**, **Quote email / text** and **Overdue reminder**.
-3. Words in curly brackets are filled in for you, e.g. `{first}` (client's first name), `{day}` (the visit day), `{amount}`, `{due}`, `{bank}`. Each message lists the ones it can use.
+3. Words in curly brackets are filled in for you, e.g. `{first}` (client's first name), `{day}` (the visit day), `{jobdate}` (the date of the work being billed), `{amount}`, `{due}`, `{bank}`. Invoice and reminder messages leave out the invoice number by default; add `{number}` back if you want it. Each message lists the ones it can use.
 
 To change the name a client is greeted by (e.g. "Karen" for a body corporate), edit the client and fill in **Name to use in messages**.
 

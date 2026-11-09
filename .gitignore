@@ -1,3 +1,4 @@
 .DS_Store
 *.json.bak
 rounds-backup-*.json
+CHAT_CONTEXT.md

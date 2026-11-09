@@ -1,5 +1,5 @@
 // Bump CACHE whenever any app file changes, or installed copies keep the old version.
-const CACHE = 'rounds-v5';
+const CACHE = 'rounds-v7';
 const ASSETS = ['./', 'index.html', 'app.js', 'styles.css', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
