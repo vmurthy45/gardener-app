@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gardener app — wireframe</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; }
+  .assume { border: 1px dashed #6b7280; color: #374151; font-size: 11px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+</style>
+</head>
+<body class="bg-gray-200 text-gray-900">
+
+<!-- Phone-width column; desktop admin view comes later -->
+<div class="max-w-md mx-auto min-h-screen bg-white flex flex-col border-x border-gray-300">
+
+  <!-- Top bar -->
+  <header class="sticky top-0 z-10 bg-gray-900 text-white px-4 h-14 flex items-center gap-3">
+    <button id="backBtn" class="hidden text-2xl w-10 h-10 -ml-2" onclick="back()">‹</button>
+    <h1 id="title" class="text-lg font-semibold flex-1">Today</h1>
+    <button class="w-10 h-10 text-xl" onclick="go('settings')" title="Settings">⚙︎</button>
+  </header>
+
+  <main class="flex-1 overflow-y-auto pb-24">
+
+    <!-- TODAY -->
+    <section id="today" class="screen active p-4 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-sm text-gray-500">Monday 09/11/2026</div>
+          <div class="text-2xl font-bold"><span id="doneCount">0</span> of 5 done</div>
+        </div>
+        <div class="text-right border-2 border-gray-800 rounded-lg px-3 py-2">
+          <div class="text-2xl">🌧</div>
+          <div class="text-xs font-semibold">Rain from 11am</div>
+          <span class="assume">weather source TBC</span>
+        </div>
+      </div>
+
+      <button onclick="openModal('rainModal')" class="w-full h-16 rounded-xl border-4 border-gray-900 font-bold text-lg">
+        Rain day — push all to tomorrow
+      </button>
+
+      <ol id="runList" class="space-y-3"></ol>
+
+      <p class="text-xs text-gray-500"><span class="assume">assumption</span> Gardeners set run order by hand; route optimisation is v2.</p>
+    </section>
+
+    <!-- JOB DETAIL -->
+    <section id="job" class="screen p-4 space-y-4">
+      <div>
+        <div class="text-2xl font-bold" id="jobClient"></div>
+        <div class="text-gray-600" id="jobAddr"></div>
+        <div class="text-sm mt-1" id="jobFreq"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <button class="h-14 rounded-lg border-2 border-gray-800 font-semibold">📍 Open in Maps</button>
+        <button class="h-14 rounded-lg border-2 border-gray-800 font-semibold">📞 Call client</button>
+      </div>
+      <div class="bg-gray-100 border-l-4 border-gray-900 p-3 rounded">
+        <div class="text-xs font-bold uppercase text-gray-500 mb-1">Site notes</div>
+        <ul id="jobNotes" class="space-y-1 font-medium"></ul>
+      </div>
+      <div>
+        <div class="text-xs font-bold uppercase text-gray-500 mb-2">Tasks</div>
+        <ul id="jobTasks" class="space-y-2"></ul>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <button class="h-14 rounded-lg border-2 border-dashed border-gray-500">📷 Add photo</button>
+        <button class="h-14 rounded-lg border-2 border-dashed border-gray-500">✎ Add note</button>
+      </div>
+      <button id="markDoneBtn" onclick="markDone()" class="w-full h-16 rounded-xl bg-gray-900 text-white font-bold text-lg">✓ Mark done</button>
+    </section>
+
+    <!-- INVOICE (generated after mark done) -->
+    <section id="invoice" class="screen p-4 space-y-4">
+      <div class="border-2 border-gray-800 rounded-lg p-4 space-y-3">
+        <div class="flex justify-between">
+          <div>
+            <div class="font-bold text-lg">TAX INVOICE</div>
+            <div class="text-sm text-gray-600">INV-0142 · 09/11/2026</div>
+          </div>
+          <div class="text-right text-sm">
+            <div class="font-semibold">Green Thumb Gardening</div>
+            <div class="text-gray-600">GST 123-456-789</div>
+          </div>
+        </div>
+        <div class="text-sm">To: <b id="invClient"></b><br><span id="invAddr" class="text-gray-600"></span></div>
+        <table class="w-full text-sm">
+          <tr class="border-b"><td class="py-1" id="invLine"></td><td class="text-right" id="invEx"></td></tr>
+          <tr><td class="pt-2 text-gray-600">Subtotal (excl. GST)</td><td class="text-right pt-2" id="invSub"></td></tr>
+          <tr><td class="text-gray-600">GST 15%</td><td class="text-right" id="invGst"></td></tr>
+          <tr class="font-bold text-lg"><td class="pt-1">Total NZD</td><td class="text-right pt-1" id="invTotal"></td></tr>
+        </table>
+        <div class="text-xs text-gray-500">Due 20/11/2026 · Bank 12-3456-0123456-00</div>
+      </div>
+      <p class="text-xs text-gray-500"><span class="assume">assumption</span> One invoice per visit, prices set GST-exclusive. Some may prefer a monthly invoice per client.</p>
+      <button onclick="sendInvoice()" class="w-full h-16 rounded-xl bg-gray-900 text-white font-bold text-lg">Send to client (email PDF)</button>
+      <button onclick="back()" class="w-full h-14 rounded-xl border-2 border-gray-800 font-semibold">Save as draft</button>
+    </section>
+
+    <!-- SCHEDULE -->
+    <section id="schedule" class="screen p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <button class="w-12 h-12 border-2 rounded-lg">‹</button>
+        <div class="font-semibold">Week of 09/11/2026</div>
+        <button class="w-12 h-12 border-2 rounded-lg">›</button>
+      </div>
+      <div id="weekList" class="space-y-3"></div>
+      <p class="text-xs text-gray-500">↻ = recurring. Drag a job to another day to move it (placeholder). <span class="assume">assumption</span> List-by-day reads better on a phone than a calendar grid.</p>
+    </section>
+
+    <!-- CLIENTS -->
+    <section id="clients" class="screen p-4 space-y-3">
+      <input class="w-full h-14 border-2 border-gray-400 rounded-lg px-4 text-lg" placeholder="Search clients or streets">
+      <ul id="clientList" class="divide-y border-y"></ul>
+      <button class="w-full h-14 rounded-xl border-2 border-gray-800 font-semibold">+ Add client</button>
+    </section>
+
+    <!-- CLIENT DETAIL -->
+    <section id="client" class="screen p-4 space-y-4">
+      <div>
+        <div class="text-2xl font-bold" id="cName"></div>
+        <div class="text-gray-600" id="cContact"></div>
+      </div>
+      <div>
+        <div class="text-xs font-bold uppercase text-gray-500 mb-2">Properties</div>
+        <ul id="cProps" class="space-y-2"></ul>
+        <button class="mt-2 w-full h-12 rounded-lg border-2 border-dashed border-gray-500">+ Add property</button>
+      </div>
+      <div>
+        <div class="text-xs font-bold uppercase text-gray-500 mb-2">Recent jobs</div>
+        <ul class="text-sm divide-y border-y">
+          <li class="py-2 flex justify-between"><span>26/10/2026 · Lawn mow</span><span>Done</span></li>
+          <li class="py-2 flex justify-between"><span>12/10/2026 · Lawn mow</span><span>Done</span></li>
+          <li class="py-2 flex justify-between"><span>28/09/2026 · Lawn mow + edges</span><span>Done</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="text-xs font-bold uppercase text-gray-500 mb-2">Invoices</div>
+        <ul class="text-sm divide-y border-y">
+          <li class="py-2 flex justify-between"><span>INV-0131 · $69.00</span><span class="font-bold">Unpaid</span></li>
+          <li class="py-2 flex justify-between"><span>INV-0118 · $69.00</span><span>Paid</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- UNPAID INVOICES -->
+    <section id="invoices" class="screen p-4 space-y-3">
+      <div class="border-2 border-gray-800 rounded-lg p-4 flex justify-between items-center">
+        <div><div class="text-sm text-gray-600">Owed to you</div><div class="text-2xl font-bold">$1,247.50</div></div>
+        <div class="text-right text-sm"><b>3 overdue</b><br>6 unpaid</div>
+      </div>
+      <ul id="invList" class="space-y-2"></ul>
+      <p class="text-xs text-gray-500"><span class="assume">assumption</span> Chasing unpaid invoices is a big pain point — to confirm in interviews.</p>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="settings" class="screen p-4 space-y-3">
+      <div class="border rounded-lg divide-y">
+        <div class="p-4 flex justify-between"><span>Business name</span><span class="text-gray-600">Green Thumb Gardening</span></div>
+        <div class="p-4 flex justify-between"><span>GST number</span><span class="text-gray-600">123-456-789</span></div>
+        <div class="p-4 flex justify-between"><span>Bank account</span><span class="text-gray-600">12-3456-…-00</span></div>
+        <div class="p-4 flex justify-between"><span>Payment terms</span><span class="text-gray-600">20th of month</span></div>
+      </div>
+      <div class="border rounded-lg divide-y">
+        <div class="p-4 flex justify-between items-center"><span>Xero</span><button class="h-11 px-4 border-2 border-gray-800 rounded-lg font-semibold">Connect</button></div>
+        <div class="p-4 flex justify-between"><span>"Coming tomorrow" reminders</span><span class="text-gray-600">SMS, 6pm</span></div>
+      </div>
+      <p class="text-xs text-gray-500"><span class="assume">assumption</span> Most users have Xero; some will just use an accountant.</p>
+    </section>
+  </main>
+
+  <!-- Bottom tab bar -->
+  <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t-2 border-gray-900 grid grid-cols-4 h-20">
+    <button data-tab="today" onclick="tab('today')" class="tabbtn flex flex-col items-center justify-center text-sm"><span class="text-2xl">☀︎</span>Today</button>
+    <button data-tab="schedule" onclick="tab('schedule')" class="tabbtn flex flex-col items-center justify-center text-sm"><span class="text-2xl">▦</span>Schedule</button>
+    <button data-tab="clients" onclick="tab('clients')" class="tabbtn flex flex-col items-center justify-center text-sm"><span class="text-2xl">☺︎</span>Clients</button>
+    <button data-tab="invoices" onclick="tab('invoices')" class="tabbtn flex flex-col items-center justify-center text-sm"><span class="text-2xl">$</span>Invoices</button>
+  </nav>
+</div>
+
+<!-- Rain-day modal -->
+<div id="rainModal" class="hidden fixed inset-0 bg-black/60 z-20 flex items-end justify-center">
+  <div class="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-4">
+    <div class="text-xl font-bold">Push today's jobs to tomorrow?</div>
+    <p id="rainText" class="text-gray-700"></p>
+    <label class="flex items-center gap-3 h-12"><input type="checkbox" checked class="w-6 h-6"> Text each client to let them know</label>
+    <div class="bg-gray-100 rounded p-3 text-sm italic">"Hi Aroha, rain's stopped play today — I'll be round Tuesday 10/11 instead. Cheers, Sam"</div>
+    <p class="text-xs text-gray-500"><span class="assume">assumption</span> Tomorrow's jobs stay put; pushed jobs are added on the end. Might need "shift the whole week" instead.</p>
+    <button onclick="pushAll()" class="w-full h-16 rounded-xl bg-gray-900 text-white font-bold text-lg">Push &amp; notify</button>
+    <button onclick="closeModal('rainModal')" class="w-full h-14 rounded-xl border-2 border-gray-800 font-semibold">Cancel</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed top-16 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-5 py-3 rounded-lg z-30 font-semibold"></div>
+
+<script>
+// ---------- Sample data (placeholder) ----------
+const jobs = [
+  { id: 1, client: "Aroha Ngata", addr: "14 Rata St, Titirangi, Auckland 0604", time: "8:00", task: "Lawn mow + edges", freq: "↻ Fortnightly", price: 60,
+    notes: ["Gate code 4471", "Friendly dog (Bella) — keep gate shut"], tasks: ["Mow front & back", "Edge paths", "Blow driveway"] },
+  { id: 2, client: "Tom & Mere Wilson", addr: "3/27 Great North Rd, Grey Lynn, Auckland 1021", time: "9:30", task: "Hedge trim", freq: "↻ Monthly", price: 120,
+    notes: ["Don't touch the roses", "Green waste bin by garage"], tasks: ["Trim front hedge", "Take clippings"] },
+  { id: 3, client: "Priya Sharma", addr: "8 Kowhai Ave, Mt Albert, Auckland 1025", time: "11:00", task: "Lawn mow", freq: "↻ Weekly", price: 45,
+    notes: ["Side gate only"], tasks: ["Mow", "Edges"] },
+  { id: 4, client: "Bruce Thompson", addr: "112 Old North Rd, RD 2, Kumeū 0892", time: "13:00", task: "Garden tidy", freq: "One-off", price: 280,
+    notes: ["Rural — patchy coverage", "Park on the gravel"], tasks: ["Weed beds", "Prune shrubs", "Mulch"] },
+  { id: 5, client: "Jess Le Roux", addr: "45 Sandringham Rd, Sandringham, Auckland 1025", time: "15:00", task: "Lawn mow", freq: "↻ Fortnightly", price: 55,
+    notes: ["Pay by bank transfer"], tasks: ["Mow", "Edges"] },
+];
+const done = new Set();
+
+const week = [
+  ["Mon 09/11", ["Aroha Ngata ↻", "Tom & Mere Wilson ↻", "Priya Sharma ↻", "Bruce Thompson", "Jess Le Roux ↻"]],
+  ["Tue 10/11", ["Kauri Lodge (body corp) ↻", "Hannah Ford ↻"]],
+  ["Wed 11/11", ["Wiremu Tane ↻", "Priya Sharma — hedge", "Lisa Chen ↻"]],
+  ["Thu 12/11", ["Mark Patel ↻", "Sophie Ward ↻"]],
+  ["Fri 13/11", ["Grey Lynn Primary ↻"]],
+];
+
+const clients = [
+  { name: "Aroha Ngata", contact: "021 555 0142 · aroha@example.co.nz", props: [["14 Rata St, Titirangi", "↻ Fortnightly lawn · $60"]] },
+  { name: "Bruce Thompson", contact: "027 555 0199", props: [["112 Old North Rd, RD 2, Kumeū", "One-off garden tidy"]] },
+  { name: "Jess Le Roux", contact: "022 555 0177", props: [["45 Sandringham Rd, Sandringham", "↻ Fortnightly lawn · $55"]] },
+  { name: "Kauri Lodge (body corp)", contact: "09 555 0100 · manager@example.co.nz", props: [["Unit 1–12, 5 Kauri Rd, Henderson", "↻ Weekly grounds · $180"], ["22 Kauri Rd, Henderson", "↻ Monthly hedges · $95"]] },
+  { name: "Priya Sharma", contact: "021 555 0123", props: [["8 Kowhai Ave, Mt Albert", "↻ Weekly lawn · $45"]] },
+  { name: "Tom & Mere Wilson", contact: "027 555 0166", props: [["3/27 Great North Rd, Grey Lynn", "↻ Monthly hedge · $120"]] },
+];
+
+const unpaid = [
+  ["Kauri Lodge (body corp)", "INV-0119", 414.00, "34 days overdue"],
+  ["Bruce Thompson", "INV-0125", 322.00, "21 days overdue"],
+  ["Aroha Ngata", "INV-0131", 69.00, "6 days overdue"],
+  ["Lisa Chen", "INV-0137", 172.50, "Due 20/11"],
+  ["Mark Patel", "INV-0139", 207.00, "Due 20/11"],
+  ["Hannah Ford", "INV-0140", 63.00, "Due 20/11"],
+];
+
+// ---------- Navigation ----------
+const titles = { today: "Today", job: "Job", invoice: "Invoice", schedule: "Schedule", clients: "Clients", client: "Client", invoices: "Invoices", settings: "Settings" };
+let stack = ["today"];
+let currentJob = null;
+const money = n => "$" + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === id));
+  document.getElementById("title").textContent = titles[id];
+  document.getElementById("backBtn").classList.toggle("hidden", stack.length < 2);
+  document.querySelectorAll(".tabbtn").forEach(b => b.classList.toggle("font-bold", b.dataset.tab === stack[0]));
+  document.querySelectorAll(".tabbtn").forEach(b => b.classList.toggle("bg-gray-200", b.dataset.tab === stack[0]));
+  window.scrollTo(0, 0);
+}
+function tab(id) { stack = [id]; show(id); }
+function go(id) { stack.push(id); show(id); }
+function back() { if (stack.length > 1) stack.pop(); show(stack[stack.length - 1]); }
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.remove("hidden"); setTimeout(() => t.classList.add("hidden"), 2200); }
+function openModal(id) { document.getElementById(id).classList.remove("hidden"); }
+function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
+
+// ---------- Today ----------
+function renderToday() {
+  const list = document.getElementById("runList");
+  const remaining = jobs.filter(j => !done.has(j.id));
+  document.getElementById("doneCount").textContent = done.size;
+  if (!jobs.length) { list.innerHTML = '<li class="p-6 text-center text-gray-500 border-2 border-dashed rounded-lg">No jobs today — all pushed to tomorrow.</li>'; return; }
+  list.innerHTML = jobs.map((j, i) => `
+    <li onclick="openJob(${j.id})" class="flex items-center gap-3 p-3 rounded-xl border-2 ${done.has(j.id) ? "border-gray-300 text-gray-400" : "border-gray-800"} cursor-pointer">
+      <div class="w-10 h-10 rounded-full ${done.has(j.id) ? "bg-gray-300" : "bg-gray-900"} text-white flex items-center justify-center font-bold">${done.has(j.id) ? "✓" : i + 1}</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-bold ${done.has(j.id) ? "line-through" : ""}">${j.client}</div>
+        <div class="text-sm truncate">${j.addr}</div>
+        <div class="text-sm">${j.time} · ${j.task} · ${j.freq}</div>
+      </div>
+      <div class="text-xl">›</div>
+    </li>`).join("");
+  document.getElementById("rainText").textContent = `${remaining.length} remaining job${remaining.length === 1 ? "" : "s"} will move to Tuesday 10/11/2026.`;
+}
+
+function openJob(id) {
+  currentJob = jobs.find(j => j.id === id);
+  document.getElementById("jobClient").textContent = currentJob.client;
+  document.getElementById("jobAddr").textContent = currentJob.addr;
+  document.getElementById("jobFreq").textContent = `${currentJob.time} · ${currentJob.task} · ${currentJob.freq} · ${money(currentJob.price)} + GST`;
+  document.getElementById("jobNotes").innerHTML = currentJob.notes.map(n => `<li>⚠︎ ${n}</li>`).join("");
+  document.getElementById("jobTasks").innerHTML = currentJob.tasks.map(t => `<li><label class="flex items-center gap-3 h-12 px-3 border rounded-lg"><input type="checkbox" class="w-6 h-6"> ${t}</label></li>`).join("");
+  const isDone = done.has(id);
+  const btn = document.getElementById("markDoneBtn");
+  btn.textContent = isDone ? "Done ✓ — view invoice" : "✓ Mark done";
+  go("job");
+}
+
+function markDone() {
+  done.add(currentJob.id);
+  renderToday();
+  const j = currentJob, gst = j.price * 0.15;
+  document.getElementById("invClient").textContent = j.client;
+  document.getElementById("invAddr").textContent = j.addr;
+  document.getElementById("invLine").textContent = `${j.task} — 09/11/2026`;
+  document.getElementById("invEx").textContent = money(j.price);
+  document.getElementById("invSub").textContent = money(j.price);
+  document.getElementById("invGst").textContent = money(gst);
+  document.getElementById("invTotal").textContent = money(j.price + gst);
+  stack = ["today", "invoice"]; // skip back to Today after invoice
+  show("invoice");
+}
+
+function sendInvoice() { tab("today"); toast("Invoice sent to " + currentJob.client); }
+
+function pushAll() {
+  const n = jobs.filter(j => !done.has(j.id)).length;
+  for (let i = jobs.length - 1; i >= 0; i--) if (!done.has(jobs[i].id)) jobs.splice(i, 1);
+  week[1][1].push(`+${n} pushed from Monday`);
+  closeModal("rainModal");
+  renderToday(); renderWeek();
+  toast(`${n} jobs moved to Tue · clients texted`);
+}
+
+// ---------- Schedule ----------
+function renderWeek() {
+  document.getElementById("weekList").innerHTML = week.map(([day, items], i) => `
+    <div class="border-2 ${i === 0 ? "border-gray-900" : "border-gray-300"} rounded-lg">
+      <div class="px-3 py-2 font-bold bg-gray-100 flex justify-between"><span>${day}${i === 0 ? " · today" : ""}</span><span class="font-normal text-sm">${items.length} jobs</span></div>
+      <ul class="p-2 space-y-1">${items.map(t => `<li draggable="true" class="h-11 px-3 flex items-center border rounded bg-white cursor-grab">≡&nbsp;&nbsp;${t}</li>`).join("")}</ul>
+    </div>`).join("") + `<button class="w-full h-14 rounded-xl border-2 border-gray-800 font-semibold">+ New recurring job</button>`;
+}
+
+// ---------- Clients ----------
+function renderClients() {
+  document.getElementById("clientList").innerHTML = clients.map((c, i) => `
+    <li onclick="openClient(${i})" class="h-16 flex items-center justify-between px-2 cursor-pointer">
+      <div><div class="font-semibold">${c.name}</div><div class="text-sm text-gray-600">${c.props[0][0]}${c.props.length > 1 ? ` +${c.props.length - 1} more` : ""}</div></div>
+      <span class="text-xl">›</span>
+    </li>`).join("");
+}
+function openClient(i) {
+  const c = clients[i];
+  document.getElementById("cName").textContent = c.name;
+  document.getElementById("cContact").textContent = c.contact;
+  document.getElementById("cProps").innerHTML = c.props.map(([a, s]) => `<li class="p-3 border-2 border-gray-800 rounded-lg"><div class="font-semibold">${a}</div><div class="text-sm">${s}</div></li>`).join("");
+  go("client");
+}
+
+// ---------- Invoices ----------
+function renderInvoices() {
+  document.getElementById("invList").innerHTML = unpaid.map(([c, n, amt, status]) => {
+    const overdue = status.includes("overdue");
+    return `<li class="p-3 rounded-lg border-2 ${overdue ? "border-gray-900" : "border-gray-300"} flex items-center gap-3">
+      <div class="flex-1"><div class="font-semibold">${c}</div><div class="text-sm text-gray-600">${n} · ${money(amt)}</div><div class="text-sm ${overdue ? "font-bold" : ""}">${status}</div></div>
+      ${overdue ? `<button onclick="toast('Reminder sent to ${c}')" class="h-12 px-3 rounded-lg bg-gray-900 text-white text-sm font-semibold">Send reminder</button>` : `<button onclick="toast('Marked paid')" class="h-12 px-3 rounded-lg border-2 border-gray-800 text-sm font-semibold">Mark paid</button>`}
+    </li>`;
+  }).join("");
+}
+
+renderToday(); renderWeek(); renderClients(); renderInvoices(); show("today");
+</script>
+</body>
+</html>
