@@ -61,7 +61,33 @@ Changes save automatically. There's no Save button.
 
 ---
 
+## Add a job
+
+A job is the work you do at an address, such as a fortnightly mow or a monthly hedge trim. Once it's set up, its visits appear on your schedule automatically. You don't need to add the client first.
+
+1. On **Today**, tap **+ Add a job** (under today's run), or **+ Job** at the top right. **+ Job** is also on the **Schedule** tab.
+2. Under **Who is it for?**:
+   - pick an existing client and address from the list, **or**
+   - choose **+ New client or address**, then enter the **street address** (required) and any of: **Client name**, **Mobile**, **Email**, suburb, postcode and **Site notes**.
+     If you leave the name blank, the address is used instead and messages start "Hi there". You can add the name later under **Clients**.
+3. Under **What's the job?**, tap a service (e.g. **Lawn mow**, **Hedge trim**, **Garden tidy**) or type your own.
+4. Enter the **Price per visit**.
+5. Under **How often?**, choose **Weekly**, **Fortnightly**, **Every 3 weeks**, **Every 4 weeks**, **Monthly**, **Every 2 months**, **Every 3 months** or **One-off**.
+6. Optional: under **In winter**, pick a slower frequency for the winter months (e.g. fortnightly mowing becomes every 4 weeks), or **No visits in winter**.
+7. Set the **First visit** date and, if it matters, a **Time**.
+8. Optional: set a **Last visit** date if the job has an end date.
+9. Optional: add **Notes for this job**, but only if it's more than the standard service (e.g. "Also weed the front bed", "Mow on the high setting"). Leave it blank for a standard mow, trim or tidy.
+10. Tap **Save job**.
+
+The app tells you when the first visit is. Visits fill your schedule about nine weeks ahead and keep topping up as time goes on.
+
+You can also add a job from a client's page: open the client and tap **+ Add a job here** under the right property. The client and address are then already filled in.
+
+---
+
 ## Add a client
+
+Use this to add a client before you have a job for them. Otherwise it's quicker to [add a job](#add-a-job) and enter the client there.
 
 1. Go to **Clients** and tap **+ Add** (top right).
 2. Enter their **Name**, plus a **Mobile** and/or **Email** so you can message them from the app.
@@ -72,7 +98,7 @@ Changes save automatically. There's no Save button.
    - **Monthly**: finished visits pile up so you can invoice them all at once.
 6. Tap **Save client**.
 
-If you entered an address, the app takes you straight to setting up their regular job (see [Set up a regular job](#set-up-a-regular-job)).
+If you entered an address, the app takes you straight to setting up their regular job (see [Add a job](#add-a-job)).
 
 ---
 
@@ -97,27 +123,9 @@ Site notes are things you need to know on the day: gate codes, dogs, plants not 
 
 ---
 
-## Set up a regular job
-
-A job is the regular work you do at a property, such as a fortnightly mow or a monthly hedge trim. Once it's set up, its visits appear on your schedule automatically.
-
-1. Open the client and tap **+ Add a job here** under the right property.
-2. Under **What's the job?**, tap a service (e.g. **Lawn mow**, **Hedge trim**, **Garden tidy**) or type your own.
-3. Enter the **Price per visit**.
-4. Under **How often?**, choose **Weekly**, **Fortnightly**, **Every 3 weeks**, **Every 4 weeks**, **Monthly**, **Every 2 months**, **Every 3 months** or **One-off**.
-5. Optional: under **In winter**, pick a slower frequency for the winter months (e.g. fortnightly mowing becomes every 4 weeks), or **No visits in winter**.
-6. Set the **First visit** date and, if it matters, a **Time**.
-7. Optional: set a **Last visit** date if the job has an end date.
-8. Optional: add **Notes for this job**, but only if it's more than the standard service (e.g. "Also weed the front bed", "Mow on the high setting"). Leave it blank for a standard mow, trim or tidy.
-9. Tap **Save job**.
-
-The app tells you when the first visit is. Visits fill your schedule about nine weeks ahead and keep topping up as time goes on.
-
----
-
 ## Add a one-off job
 
-1. Open the client and tap **+ Add a job here**.
+1. Tap **+ Add a job** on **Today** (or **+ Add a job here** on the client's page) and choose who it's for.
 2. Fill in the job and price, and under **How often?** choose **One-off**.
 3. Set the date under **First visit** and tap **Save job**.
 

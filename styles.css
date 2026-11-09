@@ -195,3 +195,4 @@ legend { font-weight: 800; padding: 0 6px; }
 }
 .inv .pay b { font-size: 12pt; line-height: 1.5; }
 .inv .pay-ref { margin-top: 8px; }
+.btn.add-job { border-style: dashed; font-size: 18px; min-height: 60px; }

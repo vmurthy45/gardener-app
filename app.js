@@ -139,7 +139,7 @@ function ctx(v) { const job = v && J(v.jobId); const prop = job && P(job.propert
 const propShort = p => (p ? [p.street, p.suburb].filter(Boolean).join(', ') : '');
 const propFull = p => (p ? [p.street, p.suburb, [p.city, p.postcode].filter(Boolean).join(' ')].filter(Boolean).join(', ') : '');
 const mapsHref = p => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(propFull(p) + ', New Zealand')}`;
-const greet = c => (c && (c.greet || c.name.split(/[\s&]+/)[0])) || 'there';
+const greet = c => (c && (c.greet || (!c.unnamed && c.name.split(/[\s&]+/)[0]))) || 'there';
 const visitPrice = x => x.v.price ?? x.job.price;
 const freqLabel = j => {
   const base = (FREQS.find(f => f[0] === j.freq) || [, j.freq])[1];
@@ -318,6 +318,7 @@ const ROUTES = [
   [/^client\/(\w+)$/, id => vClient(id)],
   [/^property\/new\/(\w+)$/, cid => vPropertyForm(null, cid)],
   [/^property\/(\w+)\/edit$/, pid => vPropertyForm(pid)],
+  [/^job\/new$/, q => vJobForm(null, null, q)],
   [/^job\/new\/(\w+)$/, (pid, q) => vJobForm(null, pid, q)],
   [/^job\/(\w+)\/edit$/, jid => vJobForm(jid)],
   [/^money(?:\/(\w+))?$/, t => vMoney(t)],
@@ -340,7 +341,7 @@ function render() {
   const a = $('#action'); a.hidden = !out.action;
   if (out.action) { a.textContent = out.action[0]; a.onclick = () => go(out.action[1]); }
   $('#view').innerHTML = out.html;
-  const tab = TAB_OF[path.split('/')[0]] || 'today';
+  const tab = path === 'job/new' ? 'today' : TAB_OF[path.split('/')[0]] || 'today';
   document.querySelectorAll('#nav button').forEach(x => x.classList.toggle('on', x.dataset.tab === tab));
   const curPath = location.hash;
   if (curPath !== lastPath) window.scrollTo(0, 0);
@@ -392,12 +393,13 @@ function vToday() {
     h += `<div class="section-head"><h2>Today's run</h2>${sched.length > 1 ? `<button class="link" onclick="reorder=!reorder;render()">${reorder ? 'Done' : 'Change order'}</button>` : ''}</div>
       <ol class="run">${list.map((x, i) => runItem(x, i)).join('')}</ol>`;
   }
+  if (S.clients.length || list.length) h += `<button class="btn add-job" onclick="go('job/new')">+ Add a job</button>`;
   if (tomN) h += `<button class="card tap" onclick="go('reminders')"><b>Tomorrow: ${tomN} visit${pl(tomN)}</b><div class="sub">Send "coming tomorrow" messages ›</div></button>`;
   const lb = S.settings.lastBackup;
   if (S.clients.length && (!lb || daysBetween(lb, t) > 14)) {
     h += `<button class="card tap" onclick="go('settings')"><b>Back up your data</b><div class="sub">${lb ? 'Last backup ' + fmtDate(lb) : 'No backup yet'}. Your data is only on this device. ›</div></button>`;
   }
-  return { title: 'Today', html: h };
+  return { title: 'Today', html: h, action: ['+ Job', 'job/new'] };
 }
 function runItem(x, i) {
   const v = x.v, hasNotes = x.prop.notes || x.job.notes;
@@ -406,15 +408,15 @@ function runItem(x, i) {
     ? `<div class="updown"><button onclick="event.stopPropagation();moveOrder('${v.id}',-1)" aria-label="Move up">▲</button><button onclick="event.stopPropagation();moveOrder('${v.id}',1)" aria-label="Move down">▼</button></div>`
     : '<span class="chev">›</span>';
   return `<li class="visit ${v.status}" onclick="go('visit/${v.id}')"><div class="num">${num}</div>
-    <div class="grow"><div class="name">${esc(x.client.name)}</div><div class="sub">${esc(propShort(x.prop))}</div>
+    <div class="grow"><div class="name">${esc(propShort(x.prop))}</div><div class="sub">${esc(x.client.name)}</div>
     <div class="sub">${x.job.time ? esc(x.job.time) + ' · ' : ''}${esc(x.job.title)}${v.status === 'skipped' ? ' · skipped' : ''}</div>
     ${hasNotes && v.status === 'scheduled' ? '<span class="flag">⚠ Notes</span>' : ''}</div>${side}</li>`;
 }
 function welcomeCard() {
-  return `<div class="card welcome"><h3>Kia ora 👋</h3><p>Three steps to get set up:</p>
-    <ol><li>Your business details, for invoices</li><li>Add a client and their property</li><li>Set up their regular job. Visits then fill your schedule automatically.</li></ol>
+  return `<div class="card welcome"><h3>Kia ora 👋</h3><p>Two steps to get set up:</p>
+    <ol><li>Your business details, for invoices</li><li>Add a job: who it's for, where, and how often. Visits then fill your schedule automatically.</li></ol>
     <button class="btn primary" onclick="go('settings')">1. Business details</button>
-    <button class="btn" onclick="go('client/new')">2. Add a client</button>
+    <button class="btn" onclick="go('job/new')">2. Add a job</button>
     <button class="link" onclick="loadSample()">Or try it out with sample data</button>
     <p class="sub sm">Everything is saved on this device only. On iPhone, add the app to your Home Screen <b>before</b> you start. The Home Screen app and Safari keep separate data.</p></div>`;
 }
@@ -543,7 +545,7 @@ function vSchedule(param) {
       : `<div class="pad sub">${S.settings.workDays.includes(dow(d)) ? 'Nothing booked' : 'Day off'}</div>`}</section>`;
   }
   h += `<p class="sub sm">Tap a visit to move it to another day. On a computer you can also drag visits between days.</p>`;
-  return { title: 'Schedule', html: h };
+  return { title: 'Schedule', html: h, action: ['+ Job', 'job/new'] };
 }
 function dropOn(e, d) {
   e.preventDefault();
@@ -644,7 +646,7 @@ function saveClient(e, id) {
   const f = Object.fromEntries(new FormData(e.target));
   const data = { name: f.name.trim(), phone: f.phone.trim(), email: f.email.trim(), billing: f.billing, greet: f.greet.trim(), billingAddress: f.billingAddress.trim(), notes: f.notes.trim() };
   if (!data.name) return toast('Add a name');
-  if (id) { Object.assign(C(id), data); save(); toast('Saved'); return back('client/' + id); }
+  if (id) { if (data.name !== C(id).name) C(id).unnamed = false; Object.assign(C(id), data); save(); toast('Saved'); return back('client/' + id); }
   const c = { id: uid(), created: todayISO(), ...data };
   S.clients.push(c);
   if (f.p_street.trim()) {
@@ -722,18 +724,35 @@ function deleteProperty(pid) {
 function vJobForm(jid, pid, q = {}) {
   const j = jid ? J(jid) : null;
   if (jid && !j) return notFound('clients');
-  const p = P(j ? j.propertyId : pid);
-  if (!p) return notFound('clients');
-  const c = C(p.clientId);
+  const p = j || pid ? P(j ? j.propertyId : pid) : null;
+  if ((j || pid) && !p) return notFound('clients');
+  const c = p && C(p.clientId);
   const d = j ? { ...j } : { title: '', price: 0, freq: 'w2', winterFreq: '', startDate: nextWorkDay(addDays(todayISO(), -1)), time: '', endDate: '', notes: '' };
   const quote = q.quote && D(q.quote);
   if (!j && quote) {
     Object.assign(d, { title: quote.lines[0]?.desc || 'Quoted job', price: quote.lines.reduce((a, l) => a + lineAmt(l), 0), freq: 'once', notes: [`From quote ${quote.number}:`, ...quote.lines.map(l => '- ' + l.desc)].join('\n') });
   }
   const wm = S.settings.winterMonths.slice().sort((a, b) => a - b).map(m => MONTHS[m - 1]).join(', ');
-  let h = `<div class="card"><b>${esc(c.name)}</b><div class="sub">${esc(propFull(p))}</div></div>
-    <form id="jobform" onsubmit="saveJob(event,'${jid || ''}','${p.id}')">
-    <label for="f_title">What's the job? *</label>
+  let h;
+  if (p) {
+    h = `<div class="card"><b>${esc(c.name)}</b><div class="sub">${esc(propFull(p))}</div></div>
+    <form id="jobform" onsubmit="saveJob(event,'${jid || ''}','${p.id}')">`;
+  } else {
+    const all = S.properties.map(pp => ({ pp, cc: C(pp.clientId) })).filter(x => x.cc).sort((a, b) => a.cc.name.localeCompare(b.cc.name) || propShort(a.pp).localeCompare(propShort(b.pp)));
+    h = `<form id="jobform" onsubmit="saveJob(event,'','')">
+    <label for="f_where">Who is it for? *</label>
+    <select id="f_where" name="where" onchange="$('#newwhere').hidden=this.value!=='new'">
+      ${all.length ? '<option value="">Choose a client or address…</option>' : ''}
+      <option value="new">+ New client or address</option>
+      ${all.map(x => `<option value="${x.pp.id}">${esc(x.cc.name)}${x.cc.unnamed ? '' : ' · ' + esc(propShort(x.pp))}</option>`).join('')}</select>
+    <fieldset id="newwhere" ${all.length ? 'hidden' : ''}><legend>New client</legend>
+      ${field('Client name', 'c_name', '', 'text', 'placeholder="Optional. Leave blank to use the address" autocomplete="off"')}
+      <div class="two">${field('Mobile', 'c_phone', '', 'tel', 'placeholder="021 123 4567"')}${field('Email', 'c_email', '', 'email')}</div>
+      ${propFields({}, false)}
+      <p class="sub sm">You can add more details to the client later.</p></fieldset>`;
+  }
+  h += `
+<label for="f_title">What's the job? *</label>
     <div class="chips">${SERVICES.map(s => `<button type="button" class="chip" onclick="pickService('${s}')">${s}</button>`).join('')}</div>
     <input id="f_title" name="title" required value="${esc(d.title)}" placeholder="e.g. Lawn mow">
     <label for="f_price">Price per visit (${gstWord()})</label>
@@ -751,7 +770,7 @@ function vJobForm(jid, pid, q = {}) {
       ${j.active ? `<button class="btn" onclick="endJob('${jid}')">End this job (stop future visits)</button>` : `<button class="btn" onclick="restartJob('${jid}')">Restart this job</button>`}
       <button class="btn danger" onclick="deleteJob('${jid}')">Delete job</button>`;
   }
-  return { title: j ? 'Edit job' : 'New job', html: h, back: 'client/' + c.id };
+  return { title: j ? 'Edit job' : 'New job', html: h, back: c ? 'client/' + c.id : 'today' };
 }
 function pickService(s) { $('#jobform').elements.title.value = s; }
 function saveJob(e, jid, pid) {
@@ -762,6 +781,19 @@ function saveJob(e, jid, pid) {
   if (!data.title) return toast("Add what the job is");
   if (!data.startDate) return toast('Pick a start date');
   if (data.endDate && data.endDate < data.startDate) return toast('The last visit is before the first');
+  const fromJobScreen = !pid;
+  if (!pid) {
+    if (!f.where) return toast('Choose who the job is for');
+    if (f.where === 'new') {
+      if (!f.p_street.trim()) return toast('Add the street address');
+      const name = f.c_name.trim();
+      const nc = { id: uid(), name: name || f.p_street.trim(), unnamed: !name, phone: f.c_phone.trim(), email: f.c_email.trim(), billing: 'visit', greet: '', billingAddress: '', notes: '', created: todayISO() };
+      const np = propFromForm(f, nc.id);
+      S.clients.push(nc); S.properties.push(np);
+      pid = np.id;
+    } else pid = f.where;
+    data.propertyId = pid;
+  }
   const cid = P(pid).clientId;
   if (jid) {
     const j = J(jid);
@@ -774,7 +806,7 @@ function saveJob(e, jid, pid) {
   S.jobs.push(j); ensureVisits(); save();
   const nv = S.visits.filter(v => v.jobId === j.id && v.status === 'scheduled').sort((a, b) => a.date.localeCompare(b.date))[0];
   toast(nv ? `Job saved. First visit: ${relDay(nv.date)}` : 'Job saved');
-  back('client/' + cid);
+  back(fromJobScreen ? 'today' : 'client/' + cid);
 }
 function endJob(id) {
   if (!confirm('End this job? Upcoming visits are removed. Past visits and invoices stay.')) return;
