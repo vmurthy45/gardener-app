@@ -4,7 +4,9 @@ Rounds keeps track of your clients, regular jobs, daily run, quotes and invoices
 
 **Before you start:** everything you enter is saved **on your phone only**. There's no account and no cloud copy. See [Back up your data](#back-up-your-data).
 
-The five tabs along the bottom of the screen are **Today**, **Schedule**, **Clients**, **Invoices** and **Settings**. On a computer they appear down the left-hand side.
+The five tabs along the bottom of the screen are **Today**, **Jobs**, **Clients**, **Invoices** and **Settings**.
+
+**Today** has everything for the day in one place: today's run, reminders to send for tomorrow's visits, and invoices to follow up. On a computer they appear down the left-hand side.
 
 ---
 
@@ -63,8 +65,8 @@ Changes save automatically. There's no Save button.
 
 A job is the work you do at an address, such as a fortnightly mow or a monthly hedge trim. Once it's set up, its visits appear on your schedule automatically. You don't need to add the client first.
 
-1. On **Today**, tap the big green **+ Add a job** button near the top. On the **Schedule** tab, tap **+ Job** at the top right.
-2. Under **Who is it for?**:
+1. On **Today** or the **Jobs** tab, tap the big green **+ Add a job** button at the top.
+2. Under **Which client is it for?**:
    - pick an existing client and address from the list, **or**
    - choose **+ New client or address**, then enter the **street address** (required) and any of: **Client name**, **Mobile**, **Email**, suburb, postcode and **Site notes**.
      If you leave the name blank, the address is used instead and messages start "Hi there". You can add the name later under **Clients**.
@@ -79,7 +81,7 @@ A job is the work you do at an address, such as a fortnightly mow or a monthly h
 
 The app tells you when the first visit is. Visits fill your schedule about nine weeks ahead and keep topping up as time goes on.
 
-You can also add a job from a client's page: open the client and tap **+ Add a job here** under the right property. The client and address are then already filled in.
+You can also add a job from a client's page: go to **Clients**, tap the client's name, then tap **+ Add a job for …**. The client and address are filled in for you. If they have more than one address, choose which one first.
 
 ---
 
@@ -87,7 +89,7 @@ You can also add a job from a client's page: open the client and tap **+ Add a j
 
 Use this to add a client before you have a job for them. Otherwise it's quicker to [add a job](#add-a-job) and enter the client there.
 
-1. Go to **Clients** and tap **+ Add** (top right).
+1. On **Today**, tap **+ Add a client**, next to **+ Add a job**. You can also go to **Clients** and tap **+ Add** (top right).
 2. Enter their **Name**, plus a **Mobile** and/or **Email** so you can message them from the app.
 3. Under **Property**, enter the address where you'll be working: street, suburb, city or town, and postcode. Rural addresses with an RD number go in the street line, e.g. *112 Old North Road, RD 2*.
 4. Add any **Site notes** (see [Add site notes to a property](#add-site-notes-to-a-property)).
@@ -123,7 +125,7 @@ Site notes are things you need to know on the day: gate codes, dogs, plants not 
 
 ## Add a one-off job
 
-1. Tap **+ Add a job** on **Today** (or **+ Add a job here** on the client's page) and choose who it's for.
+1. Tap **+ Add a job** on **Today** (or **+ Add a job for …** on the client's page) and choose who it's for.
 2. Fill in the job and price, and under **How often?** choose **One-off**.
 3. Set the date under **First visit** and tap **Save job**.
 
@@ -217,20 +219,28 @@ If a visit from an earlier day wasn't done or moved, an orange box appears on **
 ## Move a visit to a different day
 
 **On your phone**
-1. Open the visit (from **Today**, **Schedule** or the client's page).
+1. Open the visit (from **Today**, the **Week view** or the client's page).
 2. Under **Move to another day**, pick the new date and tap **Move**.
 
 **On a computer**
-1. Go to **Schedule**.
+1. Go to **Jobs** → **Week view**.
 2. Drag the visit onto another day.
 
 Moving one visit doesn't change the rest of the regular job.
 
 ---
 
-## View your schedule
+## See all your jobs
 
-1. Go to **Schedule** to see the current week, Monday to Sunday.
+1. Go to **Jobs**. Every active job is listed with the next visit first: address, client, service, how often and price.
+2. Jobs that have ended, or one-offs that are done, are listed at the bottom under **Ended or finished**.
+3. Tap a job to change it or stop it.
+
+---
+
+## View your week
+
+1. Go to **Jobs** and tap **Week view ›** to see the current week, Monday to Sunday.
 2. Each day shows its visits, how many there are and their total value. Today is outlined in black.
 3. Use **‹** and **›** to go back or forward a week, and **Back to this week** to return.
 4. Tap any visit to open it.
@@ -239,8 +249,8 @@ Moving one visit doesn't change the rest of the regular job.
 
 ## Send "coming tomorrow" reminders
 
-1. On **Today**, tap the **Tomorrow: … visits** box.
-   To remind clients about a different day, change the date under **Visits on**.
+1. On **Today**, scroll to **Remind tomorrow's clients**. (On your last working day of the week it shows your next working day instead, e.g. **Remind Monday's clients**.)
+   To remind clients about a different day, tap **Remind clients about a different day ›** and change the date.
 2. Tap **Text** or **Email** next to each client. Your phone opens a ready-written message. Check it and tap send.
 3. A **✓ sent** tick shows who you've messaged.
 
@@ -293,6 +303,8 @@ Paid invoices move to the **Paid** tab, which also shows what you've been paid t
 ---
 
 ## Chase an overdue invoice
+
+Overdue invoices also appear on **Today** under **Follow up on unpaid**, with the same **Remind** and **Paid ✓** buttons. That section also tells you if there are done visits you haven't billed yet.
 
 1. Go to **Invoices**. The top box shows how much you're owed and how many invoices are overdue.
 2. Under **Unpaid**, overdue invoices are listed first, in red.

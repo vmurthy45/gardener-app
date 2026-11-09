@@ -325,6 +325,7 @@ const ROUTES = [
   [/^today$/, () => vToday()],
   [/^visit\/(\w+)$/, id => vVisit(id)],
   [/^reminders(?:\/([\d-]+))?$/, d => vReminders(d)],
+  [/^jobs$/, () => vJobs()],
   [/^schedule(?:\/([\d-]+))?$/, d => vSchedule(d)],
   [/^clients$/, () => vClients()],
   [/^client\/new$/, () => vClientForm()],
@@ -340,7 +341,7 @@ const ROUTES = [
   [/^doc\/(\w+)$/, id => vDoc(id)],
   [/^settings$/, () => vSettings()],
 ];
-const TAB_OF = { today: 'today', visit: 'today', reminders: 'today', schedule: 'schedule', clients: 'clients', client: 'clients', property: 'clients', job: 'clients', money: 'money', doc: 'money', settings: 'settings' };
+const TAB_OF = { today: 'today', visit: 'today', reminders: 'today', jobs: 'jobs', schedule: 'jobs', clients: 'clients', client: 'clients', property: 'clients', job: 'jobs', money: 'money', doc: 'money', settings: 'settings' };
 
 function render() {
   const raw = location.hash.replace(/^#\/?/, '') || 'today';
@@ -355,7 +356,7 @@ function render() {
   const a = $('#action'); a.hidden = !out.action;
   if (out.action) { a.textContent = out.action[0]; a.onclick = () => go(out.action[1]); }
   $('#view').innerHTML = out.html;
-  const tab = path === 'job/new' ? 'today' : TAB_OF[path.split('/')[0]] || 'today';
+  const tab = TAB_OF[path.split('/')[0]] || 'today';
   document.querySelectorAll('#nav button').forEach(x => x.classList.toggle('on', x.dataset.tab === tab));
   const curPath = location.hash;
   if (curPath !== lastPath) window.scrollTo(0, 0);
@@ -388,15 +389,17 @@ function vToday() {
   const sched = list.filter(x => x.v.status === 'scheduled');
   const done = list.filter(x => x.v.status === 'done');
   const missed = S.visits.filter(v => v.status === 'scheduled' && v.date < t).map(ctx).filter(x => x.client).sort(byVDate);
-  const tomorrow = addDays(t, 1);
-  const tomN = S.visits.filter(v => v.date === tomorrow && v.status === 'scheduled').length;
+  const nextDay = nextWorkDay(t);
+  const tomList = dayVisits(nextDay, ['scheduled']);
+  const overdue = S.docs.filter(isOverdue).sort((a, b) => a.due.localeCompare(b.due));
+  const unbilled = S.visits.filter(v => v.status === 'done' && !v.docId && v.date < t).length;
   let h = '';
   if (!S.clients.length) h += welcomeCard();
   h += `<div class="hero today-head"><div class="grow"><div class="sub">${fmtLong(t)}</div>
     <div class="big">${list.length ? `${done.length} of ${list.filter(x => x.v.status !== 'skipped').length} done` : 'No visits today'}</div>
     ${done.length ? `<div class="sub">${money(done.reduce((a, x) => a + visitPrice(x), 0))} of work done today</div>` : ''}</div>
     ${sched.length ? `<button class="btn rain-sm" onclick="rainSheet()" aria-label="Rain day: push ${sched.length} visits to ${fmtDay(nextWorkDay(t))}"><span class="rain-ico">🌧</span><span><b>Rain day</b><small>Push ${sched.length} to ${DAYS[dow(nextWorkDay(t))]}</small></span></button>` : ''}</div>`;
-  if (S.clients.length) h += `<button class="btn primary big add-job" onclick="go('job/new')">+ Add a job</button>`;
+  if (S.clients.length) h += `<div class="grid2 add-row"><button class="btn primary big add-job" onclick="go('job/new')">+ Add a job</button><button class="btn big add-job" onclick="go('client/new')">+ Add a client</button></div>`;
   if (missed.length) {
     h += `<div class="card warn"><b>${missed.length} visit${pl(missed.length)} from earlier days not done</b>
       ${missed.slice(0, 6).map(x => `<div class="row mini"><div class="grow" onclick="go('visit/${x.v.id}')">${esc(x.client.name)} <span class="sub">· ${fmtDay(x.v.date)} · ${esc(x.job.title)}</span></div>
@@ -408,7 +411,18 @@ function vToday() {
     h += `<div class="section-head"><h2>Today's run</h2>${sched.length > 1 ? `<button class="link" onclick="reorder=!reorder;render()">${reorder ? 'Done' : 'Change order'}</button>` : ''}</div>
       <ol class="run">${list.map((x, i) => runItem(x, i)).join('')}</ol>`;
   }
-  if (tomN) h += `<button class="card tap" onclick="go('reminders')"><b>Tomorrow: ${tomN} visit${pl(tomN)}</b><div class="sub">Send "coming tomorrow" messages ›</div></button>`;
+  if (tomList.length) {
+    const label = nextDay === addDays(t, 1) ? 'tomorrow' : DAYS_LONG[dow(nextDay)];
+    const left = tomList.filter(x => !x.v.remindedAt).length;
+    h += `<div class="section-head"><h2>Remind ${label}'s clients</h2><span class="sub">${left ? `${left} to send` : 'All sent ✓'}</span></div>
+      <div class="list">${tomList.map(x => `<div class="${x.v.remindedAt ? 'sent-wrap' : ''}">${contactRow(x.client, msg('visit', { client: x.client, job: x.job, date: nextDay }), `Visit on ${fmtLong(nextDay)}`, `markReminded('${x.v.id}')`)}</div>`).join('')}</div>
+      <button class="link" onclick="go('reminders')">Remind clients about a different day ›</button>`;
+  }
+  if (overdue.length || unbilled) {
+    h += `<div class="section-head"><h2>Follow up on unpaid</h2>${overdue.length ? `<span class="sub bad">${money(overdue.reduce((a, d) => a + totals(d).total, 0))} overdue</span>` : ''}</div>`;
+    if (overdue.length) h += `<div class="list">${overdue.map(d => docRow(d, true)).join('')}</div>`;
+    if (unbilled) h += `<button class="card tap" onclick="go('money/ready')"><b>${unbilled} done visit${pl(unbilled)} not billed yet</b><div class="sub">Create invoices ›</div></button>`;
+  }
   const lb = S.settings.lastBackup;
   if (S.clients.length && (!lb || daysBetween(lb, t) > 14)) {
     h += `<button class="card tap" onclick="go('settings')"><b>Back up your data</b><div class="sub">${lb ? 'Last backup ' + fmtDate(lb) : 'No backup yet'}. Your data is only on this device. ›</div></button>`;
@@ -541,7 +555,26 @@ function vReminders(date) {
 }
 function markReminded(id) { V(id).remindedAt = todayISO(); save(); }
 
-// ---------------------------------------------------------------- SCHEDULE
+// ---------------------------------------------------------------- JOBS
+function vJobs() {
+  ensureVisits();
+  const t = todayISO();
+  const nextOf = j => S.visits.filter(v => v.jobId === j.id && v.status === 'scheduled' && v.date >= t).reduce((m, v) => (!m || v.date < m ? v.date : m), null);
+  const rows = S.jobs.map(j => { const prop = P(j.propertyId); return { j, prop, client: prop && C(prop.clientId), next: j.active ? nextOf(j) : null }; }).filter(x => x.client);
+  const live = rows.filter(x => x.j.active && x.next).sort((a, b) => a.next.localeCompare(b.next) || propShort(a.prop).localeCompare(propShort(b.prop)));
+  const stopped = rows.filter(x => !x.j.active || !x.next).sort((a, b) => propShort(a.prop).localeCompare(propShort(b.prop)));
+  const row = x => `<button class="item" onclick="go('job/${x.j.id}/edit')"><div class="grow"><div class="name">${esc(propShort(x.prop))}</div><div class="sub">${esc(x.client.name)}</div>
+    <div class="sub">${esc(x.j.title)} · ${x.j.freq === 'once' ? 'One-off' : freqLabel(x.j)} · ${priceLabel(x.j.price)}</div>
+    <div class="sub"><b>${x.next ? 'Next: ' + relDay(x.next) : x.j.active ? 'No upcoming visits' : 'Ended'}</b></div></div><span class="chev">›</span></button>`;
+  let h = `<button class="btn primary big add-job" onclick="go('job/new')">+ Add a job</button>`;
+  if (!rows.length) return { title: 'Jobs', html: h + `<div class="empty">No jobs yet.</div>` };
+  h += `<div class="section-head"><h2>${live.length} active job${pl(live.length)}</h2><button class="link" onclick="go('schedule')">Week view ›</button></div>`;
+  h += `<div class="list jobs">${live.map(row).join('') || '<div class="empty">No upcoming visits.</div>'}</div>`;
+  if (stopped.length) h += `<h2>Ended or finished</h2><div class="list jobs">${stopped.map(row).join('')}</div>`;
+  return { title: 'Jobs', html: h };
+}
+
+// ---------------------------------------------------------------- WEEK VIEW
 function vSchedule(param) {
   const t = todayISO(), ws = weekStart(param || t), we = addDays(ws, 6);
   ensureVisits(we);
@@ -559,7 +592,7 @@ function vSchedule(param) {
       : `<div class="pad sub">${S.settings.workDays.includes(dow(d)) ? 'Nothing booked' : 'Day off'}</div>`}</section>`;
   }
   h += `<p class="sub sm">Tap a visit to move it to another day. On a computer you can also drag visits between days.</p>`;
-  return { title: 'Schedule', html: h, action: ['+ Job', 'job/new'] };
+  return { title: 'Week view', html: h, back: 'jobs' };
 }
 function dropOn(e, d) {
   e.preventDefault();
@@ -589,6 +622,14 @@ function clientRows() {
     });
   return rows.join('') || `<div class="empty">${S.clients.length ? 'No matches.' : 'No clients yet. Tap “+ Add” to add your first one.'}</div>`;
 }
+// Add a job for a client: straight to the form with one property, a choice with several, an address first with none.
+function addJobFor(cid) {
+  const ps = props(cid);
+  if (!ps.length) return go('property/new/' + cid);
+  if (ps.length === 1) return go('job/new/' + ps[0].id);
+  showSheet(`<h3>Which address?</h3>${ps.map(p => `<button class="btn" onclick="closeSheet();go('job/new/${p.id}')">${esc(propShort(p))}</button>`).join('')}
+    <button class="btn" onclick="closeSheet();go('property/new/${cid}')">+ A new address</button><button class="link" onclick="closeSheet()">Cancel</button>`);
+}
 function vClient(id) {
   const c = C(id);
   if (!c) return notFound('clients');
@@ -599,7 +640,8 @@ function vClient(id) {
   const docs = S.docs.filter(d => d.clientId === id).sort((a, b) => b.date.localeCompare(a.date));
   let h = `<div class="hero"><div class="big">${esc(c.name)}</div>
     <div class="sub">${[c.phone, c.email].filter(Boolean).map(esc).join(' · ') || 'No contact details'}${c.billing === 'monthly' ? ' · Billed monthly' : ''}</div></div>
-    <div class="grid3">${c.phone ? `<a class="btn" href="${esc(telHref(c.phone))}">Call</a><a class="btn" href="${esc(smsHref(c.phone, ''))}">Text</a>` : ''}${c.email ? `<a class="btn" href="mailto:${esc(c.email)}">Email</a>` : ''}</div>`;
+    <div class="grid3">${c.phone ? `<a class="btn" href="${esc(telHref(c.phone))}">Call</a><a class="btn" href="${esc(smsHref(c.phone, ''))}">Text</a>` : ''}${c.email ? `<a class="btn" href="mailto:${esc(c.email)}">Email</a>` : ''}</div>
+    <button class="btn primary big" onclick="addJobFor('${id}')">+ Add a job for ${esc(c.unnamed ? 'this client' : greet(c))}</button>`;
   if (c.notes) h += `<div class="card">${nl2br(c.notes)}</div>`;
   if (ready.length) {
     h += `<div class="card warn"><b>${ready.length} visit${pl(ready.length)} ready to invoice</b> · ${money(ready.reduce((a, x) => a + visitPrice(x), 0))}
@@ -615,7 +657,7 @@ function vClient(id) {
         return `<button class="item" onclick="go('job/${j.id}/edit')"><div class="grow"><b>${esc(j.title)}</b><div class="sub">${freqLabel(j)} · ${priceLabel(j.price)}</div>
           <div class="sub">${j.active ? (nv ? 'Next: ' + relDay(nv.date) : 'No upcoming visits') : 'Ended'}</div></div><span class="chev">›</span></button>`;
       }).join('')}
-      <button class="btn" onclick="go('job/new/${p.id}')">+ Add a job here</button></div>`;
+      ${ps.length > 1 ? `<button class="btn" onclick="go('job/new/${p.id}')">+ Add a job here</button>` : ''}</div>`;
   }
   if (!ps.length) h += `<div class="empty">No property yet.</div>`;
   h += `<button class="btn" onclick="go('property/new/${id}')">+ Add ${ps.length ? 'another' : 'a'} property</button>`;
@@ -754,9 +796,9 @@ function vJobForm(jid, pid, q = {}) {
   } else {
     const all = S.properties.map(pp => ({ pp, cc: C(pp.clientId) })).filter(x => x.cc).sort((a, b) => a.cc.name.localeCompare(b.cc.name) || propShort(a.pp).localeCompare(propShort(b.pp)));
     h = `<form id="jobform" onsubmit="saveJob(event,'','')">
-    <label for="f_where">Who is it for? *</label>
+    <label for="f_where">Which client is it for? *</label>
     <select id="f_where" name="where" onchange="$('#newwhere').hidden=this.value!=='new'">
-      ${all.length ? '<option value="">Choose a client or address…</option>' : ''}
+      ${all.length ? '<option value="">Choose a client…</option>' : ''}
       <option value="new">+ New client or address</option>
       ${all.map(x => `<option value="${x.pp.id}">${esc(x.cc.name)}${x.cc.unnamed ? '' : ' · ' + esc(propShort(x.pp))}</option>`).join('')}</select>
     <fieldset id="newwhere" ${all.length ? 'hidden' : ''}><legend>New client</legend>

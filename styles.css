@@ -201,3 +201,6 @@ legend { font-weight: 800; padding: 0 6px; }
 .rain-sm .rain-ico { font-size: 24px; }
 .rain-sm b { display: block; font-size: 16px; }
 .rain-sm small { display: block; font-size: 13px; font-weight: 600; opacity: .9; }
+
+.add-row { margin: 10px 0 14px; }
+.add-row .btn.add-job { font-size: 18px; }
